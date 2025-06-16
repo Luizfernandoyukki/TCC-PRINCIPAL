@@ -1,7 +1,17 @@
-// Login.js (atualizado)
 import { useState } from 'react';
-import { } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  StatusBar,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import { Button, Text, TextInput } from 'react-native-paper';
 import { LoginService } from '../script/LoginService';
+import headerStyles from '../styles/Estilocabecalho';
+import styles from '../styles/EstilosdeLogin';
 
 export default function LoginScreen({ navigation }) {
   const [nome, setNome] = useState('');
@@ -23,18 +33,24 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-}
-
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#043b57" barStyle="light-content" />
       <View style={headerStyles.header}>
         <View style={headerStyles.headerContent}>
           <TouchableOpacity onPress={() => navigation.navigate('TelaInicial')}>
-            <Image source={require('../Assets/logo.png')} style={headerStyles.logo} resizeMode="contain" />
+            <Image 
+              source={require('../Assets/logo.png')} 
+              style={headerStyles.logo} 
+              resizeMode="contain" 
+            />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('Error')}>
-            <Image source={require('../Assets/alerta.png')} style={headerStyles.alerta} resizeMode="contain" />
+            <Image 
+              source={require('../Assets/alerta.png')} 
+              style={headerStyles.alerta} 
+              resizeMode="contain" 
+            />
           </TouchableOpacity>
         </View>
       </View>
@@ -86,9 +102,13 @@ export default function LoginScreen({ navigation }) {
         {errorMsg ? (
           <Text style={{ color: 'red', marginTop: 10, textAlign: 'center' }}>{errorMsg}</Text>
         ) : null}
-        <TouchableOpacity style={styles.cadastroText} onPress={() => navigation.navigate('Esqueciasenha')}>
+        <TouchableOpacity 
+          style={styles.cadastroText} 
+          onPress={() => navigation.navigate('Esqueciasenha')}
+        >
           <Text style={styles.cadastroText}>Esqueci a Senha</Text>
         </TouchableOpacity>
       </KeyboardAvoidingView>
     </View>
   );
+}

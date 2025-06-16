@@ -1,10 +1,8 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React, { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import 'react-native-url-polyfill/auto';
-import { supabase } from './contexts/supabaseClient';
 
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NomesProvider } from './contexts/NomesContext';
@@ -28,24 +26,11 @@ const LoadingScreen = () => (
   </View>
 );
 
-useEffect(() => {
-  const initializeLocalDB = async () => {
-    try {
-      await initDatabase();
-      setDbInitialized(true);
-      console.log('Banco de dados local inicializado');
+function AppRoutes() {
+  const { user, loading } = useAuth();
+  const [userRole, setUserRole] = React.useState(null);
+  const [dbInitialized, setDbInitialized] = React.useState(false); // Novo estado para controle do banco local
 
-      // CHAMADA DA SINCRONIZAÇÃO COMPLETA
-      const syncResult = await SyncService.initialSync();
-      console.log('Sincronização completa:', syncResult);
-    } catch (error) {
-      console.error('Falha ao inicializar banco local:', error);
-      setDbInitialized(true);
-    }
-  };
-
-  initializeLocalDB();
-}, []);
 useEffect(() => {
   const interval = setInterval(() => {
     SyncService.syncAllTables()
@@ -56,57 +41,43 @@ useEffect(() => {
   return () => clearInterval(interval);
 }, []);
 
+  
+useEffect(() => {
+  console.log('SQLite:', SQLite);
+  console.log('SQLite.openDatabase:', SQLite.openDatabase);
 
-function AppRoutes() {
-  const { user, loading } = useAuth();
-  const [userRole, setUserRole] = React.useState(null);
-  const [dbInitialized, setDbInitialized] = React.useState(false); // Novo estado para controle do banco local
+  const initializeLocalDB = async () => {
+    try {
+      console.log('Inicializando banco de dados local...');
+      await initDatabase();
+      console.log('Banco de dados local inicializado com sucesso');
+      setDbInitialized(true);
+      
+      // Verifica se há dados para sincronizar
+      SyncService.syncAllTables().catch(error => {
+        console.log('Sincronização inicial falhou, continuando em modo offline:', error);
+      });
+    } catch (error) {
+      console.error('Falha ao inicializar banco local:', error);
+      Alert.alert(
+        'Aviso', 
+        'O banco de dados local não pôde ser inicializado. Alguns recursos offline podem não estar disponíveis.'
+      );
+      setDbInitialized(true); // Continua mesmo com erro
+    }
+  };
 
-  // Inicializa o banco de dados local
-  useEffect(() => {
-    const initializeLocalDB = async () => {
-      try {
-        await initDatabase();
-        setDbInitialized(true);
-        console.log('Banco de dados local inicializado');
-      } catch (error) {
-        console.error('Falha ao inicializar banco local:', error);
-        // Mesmo com erro, continuamos o app (modo offline limitado)
-        setDbInitialized(true);
-      }
-    };
-    
-    initializeLocalDB();
-  }, []);
+  initializeLocalDB();
 
-  useEffect(() => {
-    const fetchUserRole = async () => {
-      if (user) {
-        try {
-          // Tenta pegar do AsyncStorage primeiro
-          const storedRole = await AsyncStorage.getItem('userRole');
-          if (storedRole) {
-            setUserRole(parseInt(storedRole));
-            return;
-          }
-          // Se não tiver, busca do Supabase
-          const { data: funcionario, error } = await supabase
-            .from('funcionario')
-            .select('hierarquia_id')
-            .eq('id', user.id)
-            .single();
+  // Sincronização periódica
+  const interval = setInterval(() => {
+    SyncService.syncAllTables()
+      .then((result) => console.log('Sincronização periódica:', result))
+      .catch((error) => console.error('Erro na sincronização periódica:', error));
+  }, 10 * 60 * 1000); // 10 minutos
 
-          if (funcionario && !error) {
-            setUserRole(funcionario.hierarquia_id);
-            await AsyncStorage.setItem('userRole', funcionario.hierarquia_id.toString());
-          }
-        } catch (error) {
-          console.error('Erro ao carregar perfil:', error);
-        }
-      }
-    };
-    fetchUserRole();
-  }, [user]);
+  return () => clearInterval(interval);
+}, []);
 
   // Aguarda tanto o carregamento do auth quanto a inicialização do banco local
   if (loading || (user && !userRole) || !dbInitialized) {

@@ -1,6 +1,6 @@
 // scripts/ErrorReportingService.js
-import { databaseService } from '.services/localDatabase';
-import { SyncService } from '.services/syncService';
+import { databaseService } from '../services/localDatabase';
+import { SyncService } from '../services/syncService';
 
 export const ErrorReportingService = {
   async reportError(errorData) {

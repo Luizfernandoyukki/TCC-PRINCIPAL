@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Alert, Image, ImageBackground, ScrollView, StatusBar, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { Text } from 'react-native-paper';
-import { ErrorReportService } from '../services/ErrorReportService';
+import { ErrorReportService } from '../script/ErrorReportService';
 
 export default function ErrorScreen({ navigation }) {
   const [name, setName] = useState('');

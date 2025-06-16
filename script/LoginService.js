@@ -1,6 +1,6 @@
 // scripts/LoginService.js
-import { databaseService } from '.services/localDatabase';
 import { supabase } from '../contexts/supabaseClient';
+import { databaseService } from '../services/localDatabase';
 
 export const LoginService = {
   async handleLogin(nome, senha, navigation) {

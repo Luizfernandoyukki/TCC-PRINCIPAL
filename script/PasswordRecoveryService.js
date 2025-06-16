@@ -1,6 +1,6 @@
 // scripts/PasswordRecoveryService.js
-import { databaseService } from '.services/localDatabase';
-import { SyncService } from '.services/syncService';
+import { databaseService } from '../services/localDatabase';
+import { SyncService } from '../services/syncService';
 
 export const PasswordRecoveryService = {
   async requestPasswordReset({ nomeCompleto, cpf, dataNascimento }) {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Alert, Image, ImageBackground, ScrollView, StatusBar, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { Text } from 'react-native-paper';
-import { PasswordService } from '../services/PasswordService';
+import { PasswordService } from '../script/PasswordService';
 
 export default function ForgotPasswordScreen({ navigation }) {
   const [nomeCompleto, setNomeCompleto] = useState('');

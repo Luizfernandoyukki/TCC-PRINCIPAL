@@ -1,24 +1,25 @@
 import * as SQLite from 'expo-sqlite';
+import { Platform } from 'react-native';
 
+let db = null;
 
-const db = SQLite.openDatabase('local.db');
+if (Platform.OS !== 'web') {
+  db = SQLite.openDatabase('localDatabase.db');
+} else {
+  console.warn('SQLite não é suportado no navegador.');
+}
 
-// Função para gerar UUID
-const generateUUID = () => {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-};
-
-// Inicializa todas as tabelas
 export const initDatabase = async () => {
   return new Promise((resolve, reject) => {
-    db.transaction(
-      tx => {
+    if (!db) {
+      reject(new Error('SQLite não disponível neste ambiente.'));
+      return;
+    }
+
+    db.transaction(tx => {
+        // Ativa chaves estrangeiras
         tx.executeSql('PRAGMA foreign_keys = ON;');
-        // Tabela cargo
+        
         tx.executeSql(
           `CREATE TABLE IF NOT EXISTS cargo (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -476,31 +477,20 @@ export const initDatabase = async () => {
            END;`
         );
       },
-      error => reject(error),
-      () => resolve()
+      
+       error => {
+        console.error('Erro na transação de inicialização:', error);
+        reject(error);
+      },
+      () => {
+        console.log('Banco de dados inicializado com sucesso');
+        resolve();
+      }
     );
   });
-};
+};  
 
-// Função para executar queries
-const executeQuery = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.transaction(tx => {
-      tx.executeSql(
-        sql,
-        params,
-        (_, result) => resolve(result),
-        (_, error) => {
-          console.error('Database error:', error);
-          reject(error);
-          return false;
-        }
-      );
-    });
-  });
-};
-
-// Serviço de banco de dados local
+// Serviço de banco de dados
 export const databaseService = {
   async insert(table, data) {
     const columns = Object.keys(data).join(', ');

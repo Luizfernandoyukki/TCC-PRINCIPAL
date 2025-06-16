@@ -1,14 +1,35 @@
-import { databaseService } from './localDatabase';
-import { supabase } from './supabaseClient';
+import { supabase } from '../contexts/supabaseClient';
+import { databaseService, initDatabase } from './localDatabase';
 
 const SyncService = {
-  // Sincronização básica (download from Supabase)
+  // Função para verificar conexão com Supabase
+  async checkSupabaseConnection() {
+    try {
+      const { error } = await supabase
+        .from('funcionario')
+        .select('*')
+        .limit(1);
+        
+      return !error; // Retorna true se não houver erro
+    } catch {
+      return false;
+    }
+  },
+
+  // Sincronização básica (download from Supabase) com verificação de conexão
   async syncTable(tableName, columns = '*', filter = '') {
     try {
-      // 1. Obter data da última sincronização
+      // 1. Verificar se está online
+      const isOnline = await this.checkSupabaseConnection();
+      if (!isOnline) {
+        console.log(`Modo offline - não sincronizando tabela ${tableName}`);
+        return { success: false, offline: true };
+      }
+      
+      // 2. Obter data da última sincronização
       const lastSync = await databaseService.getLastSync(tableName);
       
-      // 2. Buscar dados atualizados do Supabase
+      // 3. Buscar dados atualizados do Supabase
       let query = supabase
         .from(tableName)
         .select(columns);
@@ -25,7 +46,7 @@ const SyncService = {
 
       if (error) throw error;
 
-      // 3. Atualizar banco local
+      // 4. Atualizar banco local
       for (const item of data) {
         const existing = await databaseService.select(
           tableName,
@@ -63,7 +84,7 @@ const SyncService = {
   },
 
   // Sincronização bidirecional completa
-  async fullSync(tableName) {
+ async fullSync(tableName) {
     try {
       // 1. Download from Supabase
       const downloadResult = await this.syncTable(tableName);
@@ -104,7 +125,6 @@ const SyncService = {
     }
   },
 
-  // Sincronizar todas as tabelas importantes
   async syncAllTables() {
     const tables = ['funcionario', 'cliente', 'estoque', 'pedido'];
     const results = {};
@@ -116,7 +136,6 @@ const SyncService = {
     return results;
   },
 
-  // Sincronização inicial do app
   async initialSync() {
     try {
       await initDatabase();
