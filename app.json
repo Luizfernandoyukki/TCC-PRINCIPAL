@@ -3,6 +3,7 @@
     "name": "app-estoques-",
     "slug": "snack-08a01606-9556-425a-b19d-9d56a2bb5ec9",
     "version": "1.0.0",
+    "sdkVersion": "53.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",

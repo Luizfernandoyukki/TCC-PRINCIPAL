@@ -2,6 +2,24 @@ import { useState } from 'react';
 import { Alert, Image, ScrollView, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
 import { supabase } from '../../../contexts/supabaseClient';
+import { cadastrarCliente } from '../script/cadastrosService';
+
+const handleSalvar = async () => {
+  try {
+    const resultado = await cadastrarCliente({
+      nome,
+      tipo,
+      cpf,
+      cnpj,
+      rg,
+      observacao,
+      endereco_id
+    });
+    alert('Cliente cadastrado via: ' + resultado.origem);
+  } catch (err) {
+    alert('Erro no cadastro: ' + err.message);
+  }
+};
 
 const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 

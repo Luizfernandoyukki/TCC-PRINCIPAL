@@ -3,6 +3,23 @@ import { useState } from 'react';
 import { Alert, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Button, TextInput } from 'react-native-paper';
 import { supabase } from '../../../contexts/supabaseClient';
+import { cadastrarBalanco } from '../script/cadastrosService';
+
+const handleSalvar = async () => {
+  try {
+    const resultado = await cadastrarBalanco({
+      nome,
+      data,
+      motivo,
+      periodo,
+      tipo,
+      usuario_id
+    });
+    alert('Balanço cadastrado via: ' + resultado.origem);
+  } catch (err) {
+    alert('Erro no cadastro: ' + err.message);
+  }
+};
 
 export default function CadastroBalanco({ navigation }) {
   // Estados do formulário

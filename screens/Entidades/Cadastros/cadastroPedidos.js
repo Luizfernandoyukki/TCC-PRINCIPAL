@@ -3,6 +3,23 @@ import { useEffect, useState } from 'react';
 import { Alert, Image, ScrollView, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, Checkbox, Text, TextInput } from 'react-native-paper';
 import { supabase } from '../../../contexts/supabaseClient';
+import { cadastrarPedido } from '../script/cadastrosService';
+
+const handleSalvar = async () => {
+  try {
+    const resultado = await cadastrarPedido({
+      estoque_id,
+      quantidade,
+      cliente_id,
+      status,
+      observacao,
+      criado_por
+    });
+    alert('Pedido cadastrado via: ' + resultado.origem);
+  } catch (err) {
+    alert('Erro no cadastro: ' + err.message);
+  }
+};
 
 export default function CadastroPedidos({ navigation }) {
   const [formData, setFormData] = useState({

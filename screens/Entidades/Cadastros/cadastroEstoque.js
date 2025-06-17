@@ -3,6 +3,29 @@ import { useState } from 'react';
 import { Alert, Image, ScrollView, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
 import { supabase } from '../../../contexts/supabaseClient';
+import { cadastrarEstoque } from '../script/cadastrosService';
+
+const handleSalvar = async () => {
+  try {
+    const resultado = await cadastrarEstoque({
+      nome,
+      quantidade,
+      numero_serie,
+      tipo,
+      data_aquisicao,
+      data_validade,
+      peso,
+      valor,
+      modalidade,
+      observacao,
+      funcionario_id,
+      cliente_id
+    });
+    alert('Estoque cadastrado via: ' + resultado.origem);
+  } catch (err) {
+    alert('Erro no cadastro: ' + err.message);
+  }
+};
 
 export default function CadastroEstoque({ navigation }) {
   const [formData, setFormData] = useState({

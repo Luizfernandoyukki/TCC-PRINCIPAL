@@ -4,6 +4,8 @@ import { Alert, Image, ScrollView, StatusBar, StyleSheet, TouchableOpacity, View
 import { Button, Text, TextInput } from 'react-native-paper';
 import { supabase } from '../../../contexts/supabaseClient';
 
+
+
 export default function CadastroEntradas({ navigation }) {
   const [formData, setFormData] = useState({
     estoque_id: null,

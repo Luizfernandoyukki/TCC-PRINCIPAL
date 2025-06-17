@@ -3,6 +3,22 @@ import { useEffect, useState } from 'react';
 import { Alert, Image, ScrollView, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
 import { supabase } from '../../../contexts/supabaseClient';
+import { cadastrarDevolucao } from '../script/cadastrosService';
+
+const handleSalvar = async () => {
+  try {
+    const resultado = await cadastrarDevolucao({
+      estoque_id,
+      quantidade,
+      motivo,
+      responsavel_id,
+      observacao
+    });
+    alert('Devolução cadastrada via: ' + resultado.origem);
+  } catch (err) {
+    alert('Erro no cadastro: ' + err.message);
+  }
+};
 
 export default function CadastroDevolucoes({ navigation }) {
   const [formData, setFormData] = useState({

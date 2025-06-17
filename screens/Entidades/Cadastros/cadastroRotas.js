@@ -3,6 +3,27 @@ import { useEffect, useState } from 'react';
 import { Alert, Image, ScrollView, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
 import { supabase } from '../../../contexts/supabaseClient';
+import { cadastrarRota } from '../script/cadastrosService';
+
+const handleSalvar = async () => {
+  try {
+    const resultado = await cadastrarRota({
+      nome,
+      destino,
+      distancia,
+      horario_partida,
+      veiculo_id,
+      funcionario_id,
+      clientes_id,
+      observacao,
+      status,
+      tempo_medio_minutos
+    });
+    alert('Rota cadastrada via: ' + resultado.origem);
+  } catch (err) {
+    alert('Erro no cadastro: ' + err.message);
+  }
+};
 
 export default function CadastroRotas({ navigation }) {
   const [formData, setFormData] = useState({
