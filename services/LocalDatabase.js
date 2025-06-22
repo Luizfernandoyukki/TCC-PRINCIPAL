@@ -8,6 +8,24 @@ if (Platform.OS !== 'web') {
 } else {
   console.warn('SQLite não é suportado no navegador.');
 }
+export const insertLocalData = async (table, data) => {
+  return new Promise((resolve, reject) => {
+    db.transaction(tx => {
+      const columns = Object.keys(data).join(', ');
+      const placeholders = Object.keys(data).map(() => '?').join(', ');
+      const values = Object.values(data).map(val => 
+        Array.isArray(val) ? JSON.stringify(val) : val
+      );
+      
+      tx.executeSql(
+        `INSERT INTO ${table} (${columns}) VALUES (${placeholders})`,
+        values,
+        (_, result) => resolve(result),
+        (_, error) => reject(error)
+      );
+    });
+  });
+};
 
 export const initDatabase = async () => {
   return new Promise((resolve, reject) => {
@@ -140,6 +158,8 @@ export const initDatabase = async () => {
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
             foto_url TEXT,
             superior_id TEXT,
+            status TEXT DEFAULT 'ativo' CHECK (status IN ('ativo', 'inativo', 'ferias', 'licenca')),
+            tipo_contrato TEXT,
             is_admin INTEGER NOT NULL DEFAULT 0 CHECK (is_admin IN (0, 1)),
             is_superior INTEGER NOT NULL DEFAULT 0 CHECK (is_superior IN (0, 1)),
             FOREIGN KEY (genero_id) REFERENCES genero(id),
@@ -236,23 +256,6 @@ export const initDatabase = async () => {
           );`
         );
 
-        // Tabela entrada
-        tx.executeSql(
-          `CREATE TABLE IF NOT EXISTS entrada (
-            id TEXT PRIMARY KEY,
-            estoque_id INTEGER NOT NULL,
-            quantidade INTEGER NOT NULL CHECK (quantidade > 0),
-            data_entrada TEXT NOT NULL DEFAULT CURRENT_DATE,
-            fornecedor TEXT,
-            responsavel_id TEXT NOT NULL,
-            observacao TEXT,
-            criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            nota INTEGER NOT NULL DEFAULT 0 CHECK (nota IN (0, 1)),
-            FOREIGN KEY (estoque_id) REFERENCES estoque(id),
-            FOREIGN KEY (responsavel_id) REFERENCES funcionario(id)
-          );`
-        );
-
         // Tabela pedido
         tx.executeSql(
           `CREATE TABLE IF NOT EXISTS pedido (
@@ -266,78 +269,30 @@ export const initDatabase = async () => {
             criado_por TEXT NOT NULL,
             criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             nota INTEGER NOT NULL DEFAULT 0 CHECK (nota IN (0, 1)),
+            tipo_pagamento TEXT DEFAULT 'dinheiro' CHECK (tipo_pagamento IN ('dinheiro', 'boleto', 'cheque', 'vale', 'pix', 'cartao')),
+            valor_unitario REAL,
+            valor_total REAL,
             FOREIGN KEY (criado_por) REFERENCES funcionario(id),
             FOREIGN KEY (cliente_id) REFERENCES cliente(id),
             FOREIGN KEY (estoque_id) REFERENCES estoque(id)
           );`
         );
 
-        // Tabela rota
+        // Tabela entrada
         tx.executeSql(
-          `CREATE TABLE IF NOT EXISTS rota (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome TEXT NOT NULL,
-            destino TEXT NOT NULL,
-            distancia REAL,
-            horario_partida TEXT NOT NULL,
-            veiculo_id INTEGER NOT NULL,
-            funcionario_id TEXT NOT NULL,
-            clientes_id TEXT DEFAULT '[]',
-            data_rota TEXT NOT NULL DEFAULT CURRENT_DATE,
-            observacao TEXT,
-            status TEXT NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente', 'em_andamento', 'concluida', 'cancelada')),
-            tempo_medio_minutos INTEGER NOT NULL DEFAULT 0 CHECK (tempo_medio_minutos >= 0),
-            FOREIGN KEY (veiculo_id) REFERENCES veiculo(id),
-            FOREIGN KEY (funcionario_id) REFERENCES funcionario(id)
-          );`
-        );
-
-        // Tabela rota_cliente (para relacionamento muitos-para-muitos)
-        tx.executeSql(
-          `CREATE TABLE IF NOT EXISTS rota_cliente (
-            rota_id INTEGER NOT NULL,
-            cliente_id INTEGER NOT NULL,
-            PRIMARY KEY (rota_id, cliente_id),
-            FOREIGN KEY (rota_id) REFERENCES rota(id),
-            FOREIGN KEY (cliente_id) REFERENCES cliente(id)
-          );`
-        );
-
-        // Tabela entrega
-        tx.executeSql(
-          `CREATE TABLE IF NOT EXISTS entrega (
+          `CREATE TABLE IF NOT EXISTS entrada (
             id TEXT PRIMARY KEY,
             estoque_id INTEGER NOT NULL,
             quantidade INTEGER NOT NULL CHECK (quantidade > 0),
-            cliente_id INTEGER NOT NULL,
-            veiculo_id INTEGER NOT NULL,
-            funcionario_id TEXT NOT NULL,
-            data_saida TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            data_entrega TEXT,
-            status TEXT NOT NULL CHECK (status IN ('preparacao', 'a_caminho', 'entregue', 'devolucao_parcial', 'rejeitada')),
-            quantidade_devolvida INTEGER DEFAULT 0 CHECK (quantidade_devolvida >= 0),
-            motivo_devolucao TEXT,
-            observacao TEXT,
-            criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            nota INTEGER NOT NULL DEFAULT 0 CHECK (nota IN (0, 1)),
-            FOREIGN KEY (veiculo_id) REFERENCES veiculo(id),
-            FOREIGN KEY (estoque_id) REFERENCES estoque(id),
-            FOREIGN KEY (cliente_id) REFERENCES cliente(id),
-            FOREIGN KEY (funcionario_id) REFERENCES funcionario(id)
-          );`
-        );
-
-        // Tabela devolucao
-        tx.executeSql(
-          `CREATE TABLE IF NOT EXISTS devolucao (
-            id TEXT PRIMARY KEY,
-            estoque_id INTEGER NOT NULL,
-            quantidade INTEGER NOT NULL CHECK (quantidade > 0),
-            motivo TEXT NOT NULL,
-            data_devolucao TEXT NOT NULL DEFAULT CURRENT_DATE,
+            data_entrada TEXT NOT NULL DEFAULT CURRENT_DATE,
+            fornecedor TEXT,
             responsavel_id TEXT NOT NULL,
             observacao TEXT,
             criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            nota INTEGER NOT NULL DEFAULT 0 CHECK (nota IN (0, 1)),
+            tipo_pagamento TEXT DEFAULT 'dinheiro' CHECK (tipo_pagamento IN ('dinheiro', 'boleto', 'cheque', 'vale', 'pix', 'cartao')),
+            valor_unitario REAL,
+            valor_total REAL,
             FOREIGN KEY (estoque_id) REFERENCES estoque(id),
             FOREIGN KEY (responsavel_id) REFERENCES funcionario(id)
           );`
@@ -359,21 +314,56 @@ export const initDatabase = async () => {
             observacao TEXT,
             nota INTEGER NOT NULL DEFAULT 0 CHECK (nota IN (0, 1)),
             criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            tipo_pagamento TEXT DEFAULT 'dinheiro' CHECK (tipo_pagamento IN ('dinheiro', 'boleto', 'cheque', 'vale', 'pix', 'cartao')),
+            valor_unitario REAL,
+            valor_total REAL,
             FOREIGN KEY (estoque_id) REFERENCES estoque(id),
             FOREIGN KEY (cliente_id) REFERENCES cliente(id),
             FOREIGN KEY (veiculo_id) REFERENCES veiculo(id),
             FOREIGN KEY (funcionario_id) REFERENCES funcionario(id)
           );`
         );
+
+        // Tabela entrega
         tx.executeSql(
-          `CREATE TABLE IF NOT EXISTS password_reset_tokens (
+          `CREATE TABLE IF NOT EXISTS entrega (
             id TEXT PRIMARY KEY,
+            estoque_id INTEGER NOT NULL,
+            quantidade INTEGER NOT NULL CHECK (quantidade > 0),
+            cliente_id INTEGER NOT NULL,
+            veiculo_id INTEGER NOT NULL,
             funcionario_id TEXT NOT NULL,
-            token TEXT NOT NULL,
-            expires_at TEXT NOT NULL,
-            used INTEGER DEFAULT 0,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            data_saida TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            data_entrega TEXT,
+            status TEXT NOT NULL CHECK (status IN ('preparacao', 'a_caminho', 'entregue', 'devolucao_parcial', 'rejeitada')),
+            quantidade_devolvida INTEGER DEFAULT 0 CHECK (quantidade_devolvida >= 0),
+            motivo_devolucao TEXT,
+            observacao TEXT,
+            criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            nota INTEGER NOT NULL DEFAULT 0 CHECK (nota IN (0, 1)),
+            tipo_pagamento TEXT DEFAULT 'dinheiro' CHECK (tipo_pagamento IN ('dinheiro', 'boleto', 'cheque', 'vale', 'pix', 'cartao')),
+            valor_unitario REAL,
+            valor_total REAL,
+            FOREIGN KEY (veiculo_id) REFERENCES veiculo(id),
+            FOREIGN KEY (estoque_id) REFERENCES estoque(id),
+            FOREIGN KEY (cliente_id) REFERENCES cliente(id),
             FOREIGN KEY (funcionario_id) REFERENCES funcionario(id)
+          );`
+        );
+
+        // Tabela devolucao
+        tx.executeSql(
+          `CREATE TABLE IF NOT EXISTS devolucao (
+            id TEXT PRIMARY KEY,
+            estoque_id INTEGER NOT NULL,
+            quantidade INTEGER NOT NULL CHECK (quantidade > 0),
+            motivo TEXT NOT NULL,
+            data_devolucao TEXT NOT NULL DEFAULT CURRENT_DATE,
+            responsavel_id TEXT NOT NULL,
+            observacao TEXT,
+            criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (estoque_id) REFERENCES estoque(id),
+            FOREIGN KEY (responsavel_id) REFERENCES funcionario(id)
           );`
         );
 
@@ -476,6 +466,26 @@ export const initDatabase = async () => {
              WHERE id = NEW.estoque_id;
            END;`
         );
+        // Adicionar após os triggers existentes
+        tx.executeSql(
+          `CREATE TRIGGER IF NOT EXISTS update_estoque_validade
+          AFTER INSERT ON estoque
+          WHEN NEW.data_validade IS NOT NULL AND date(NEW.data_validade) < date('now')
+          BEGIN
+            UPDATE estoque 
+            SET disponivel_geral = 0
+            WHERE id = NEW.id;
+          END;`
+        );
+
+        tx.executeSql(
+          `CREATE TRIGGER IF NOT EXISTS check_estoque_disponivel
+          BEFORE UPDATE ON estoque
+          WHEN NEW.quantidade < NEW.quantidade_reservada
+          BEGIN
+            SELECT RAISE(ABORT, 'Quantidade reservada maior que disponível');
+          END;`
+        );
       },
       
        error => {
@@ -539,11 +549,20 @@ export const databaseService = {
     await this.insert(table, { id, ...data });
     return id;
   },
+  
 
   async getLastSync(table) {
     const result = await this.select(table, '1=1 ORDER BY last_sync DESC LIMIT 1');
     return result[0]?.last_sync || null;
   }
 };
+
+function generateUUID() {
+  // Gera um UUID v4 simples (não criptograficamente seguro)
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
 
 export default db;

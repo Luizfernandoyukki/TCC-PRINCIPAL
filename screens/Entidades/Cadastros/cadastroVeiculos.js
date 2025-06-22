@@ -1,24 +1,9 @@
-import { useState } from 'react';
+import NetInfo from '@react-native-community/netinfo';
+import { useEffect, useState } from 'react';
 import { Alert, Image, ScrollView, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
 import { supabase } from '../../../contexts/supabaseClient';
-import { cadastrarVeiculo } from '../script/cadastrosService';
-
-const handleSalvar = async () => {
-  try {
-    const resultado = await cadastrarVeiculo({
-      placa,
-      modelo,
-      observacao,
-      funcionario_id,
-      funcao_veiculo_id,
-      capacidade_kg
-    });
-    alert('Veículo cadastrado via: ' + resultado.origem);
-  } catch (err) {
-    alert('Erro no cadastro: ' + err.message);
-  }
-};
+import { databaseService } from '../../../services/localDatabase';
 
 export default function CadastroVeiculos({ navigation }) {
   const [formData, setFormData] = useState({
@@ -32,6 +17,8 @@ export default function CadastroVeiculos({ navigation }) {
   const [funcoesVeiculo, setFuncoesVeiculo] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [anoFabricacao, setAnoFabricacao] = useState('');
+  const [status, setStatus] = useState('ativo');
 
   useEffect(() => {
     const fetchFuncoes = async () => {
@@ -40,15 +27,12 @@ export default function CadastroVeiculos({ navigation }) {
           .from('funcao_veiculo')
           .select('id, nome')
           .order('nome');
-
         if (error) throw error;
         setFuncoesVeiculo(data || []);
       } catch (error) {
         Alert.alert('Erro', 'Não foi possível carregar as funções de veículo');
-        console.error(error);
       }
     };
-
     fetchFuncoes();
   }, []);
 
@@ -58,36 +42,35 @@ export default function CadastroVeiculos({ navigation }) {
     if (!formData.modelo.trim()) newErrors.modelo = 'Campo obrigatório';
     if (formData.placa.trim().length < 7) newErrors.placa = 'Placa inválida';
     if (formData.capacidade_kg && isNaN(formData.capacidade_kg)) newErrors.capacidade = 'Valor inválido';
-    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
-
     setLoading(true);
     try {
       const veiculoData = {
         placa: formData.placa.trim().toUpperCase(),
         modelo: formData.modelo.trim(),
-        funcao_veiculo_id: formData.funcao_veiculo_id,
+        observacao: formData.observacao?.trim() || null,
+        funcao_veiculo_id: formData.funcao_veiculo_id || null,
         capacidade_kg: formData.capacidade_kg ? parseFloat(formData.capacidade_kg) : null,
-        observacao: formData.observacao.trim() || null
+        ano_fabricacao: anoFabricacao || null,
+        status: status
       };
 
-      const { data, error } = await supabase
-        .from('veiculo')
-        .insert([veiculoData])
-        .single();
-
-      if (error) throw error;
+      const state = await NetInfo.fetch();
+      if (state.isConnected) {
+        const { error } = await supabase.from('veiculo').insert([veiculoData]);
+        if (error) throw error;
+      } else {
+        await databaseService.insertWithUUID('veiculo', veiculoData);
+      }
 
       Alert.alert('Sucesso', 'Veículo cadastrado com sucesso!');
       navigation.goBack();
-
     } catch (error) {
-      console.error('Erro ao cadastrar veículo:', error);
       Alert.alert('Erro', error.message || 'Falha ao cadastrar veículo');
     } finally {
       setLoading(false);
@@ -97,7 +80,6 @@ export default function CadastroVeiculos({ navigation }) {
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#043b57" barStyle="light-content" />
-      
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -116,11 +98,9 @@ export default function CadastroVeiculos({ navigation }) {
           </TouchableOpacity>
         </View>
       </View>
-
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>CADASTRO DE VEÍCULO</Text>
-          
           <TextInput
             label="Placa*"
             value={formData.placa}
@@ -146,7 +126,32 @@ export default function CadastroVeiculos({ navigation }) {
           />
           {errors.modelo && <Text style={styles.errorText}>{errors.modelo}</Text>}
 
-          {/* Seletor de Função */}
+          <TextInput
+            label="Ano de Fabricação"
+            value={anoFabricacao}
+            onChangeText={setAnoFabricacao}
+            style={styles.input}
+            keyboardType="numeric"
+          />
+
+          <Text style={styles.label}>Status *</Text>
+          <View style={styles.radioGroup}>
+            {['ativo', 'manutencao', 'inativo'].map((item) => (
+              <TouchableOpacity
+                key={item}
+                style={[
+                  styles.radioButton,
+                  status === item && styles.radioButtonSelected
+                ]}
+                onPress={() => setStatus(item)}
+              >
+                <Text style={status === item ? styles.radioTextSelected : styles.radioText}>
+                  {item.charAt(0).toUpperCase() + item.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
           <Text style={styles.label}>Função</Text>
           <View style={styles.pickerContainer}>
             {funcoesVeiculo.map(funcao => (
@@ -204,7 +209,7 @@ export default function CadastroVeiculos({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-   container: {
+  container: {
     flex: 1,
     backgroundColor: '#844a05',
   },
@@ -259,15 +264,6 @@ const styles = StyleSheet.create({
     color: '#043b57',
     fontWeight: 'bold',
   },
-  dateInput: {
-    backgroundColor: 'white',
-    padding: 15,
-    borderRadius: 5,
-    marginBottom: 15,
-  },
-  dateText: {
-    fontSize: 16,
-  },
   pickerContainer: {
     marginBottom: 15,
   },
@@ -300,13 +296,28 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-  checkboxContainer: {
+  radioGroup: {
     flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
     marginBottom: 15,
   },
-  checkboxLabel: {
+  radioButton: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: '#043b57',
+    borderRadius: 5,
+    padding: 10,
+    marginRight: 10,
+    marginBottom: 10,
+  },
+  radioButtonSelected: {
+    backgroundColor: '#043b57',
+  },
+  radioText: {
     marginLeft: 8,
     color: '#043b57',
+  },
+  radioTextSelected: {
+    color: 'white',
   },
 });

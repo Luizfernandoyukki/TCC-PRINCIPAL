@@ -18,6 +18,16 @@ const validar = (dados, camposObrigatorios) => {
 };
 
 /** Template de cadastro */
+// Adicione esta função auxiliar para gerar UUID quando offline
+const generateUUID = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
+/** Template de cadastro atualizado */
 const cadastrar = async (tabela, dados, camposObrigatorios) => {
   validar(dados, camposObrigatorios);
   const online = await isOnline();
@@ -27,10 +37,15 @@ const cadastrar = async (tabela, dados, camposObrigatorios) => {
     if (error) throw new Error(error.message);
     return { origem: 'supabase', data };
   } else {
+    // Adiciona ID local se não existir
+    if (!dados.id) {
+      dados.id = generateUUID();
+    }
     await insertLocalData(tabela, dados);
     return { origem: 'local', data: dados };
   }
 };
+
 
 // ==== ENTIDADES INDIVIDUAIS ====
 

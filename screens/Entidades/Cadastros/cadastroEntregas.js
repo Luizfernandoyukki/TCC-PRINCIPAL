@@ -1,27 +1,10 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
+import NetInfo from '@react-native-community/netinfo';
 import { useEffect, useState } from 'react';
 import { Alert, Image, ScrollView, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
 import { supabase } from '../../../contexts/supabaseClient';
-import { cadastrarEntrega } from '../script/cadastrosService';
-
-const handleSalvar = async () => {
-  try {
-    const resultado = await cadastrarEntrega({
-      estoque_id,
-      quantidade,
-      cliente_id,
-      veiculo_id,
-      funcionario_id,
-      status,
-      motivo_devolucao,
-      observacao
-    });
-    alert('Entrega cadastrada via: ' + resultado.origem);
-  } catch (err) {
-    alert('Erro no cadastro: ' + err.message);
-  }
-};
+import { databaseService } from '../../../services/localDatabase';
 
 export default function CadastroEntregas({ navigation }) {
   const [formData, setFormData] = useState({
@@ -32,43 +15,41 @@ export default function CadastroEntregas({ navigation }) {
     funcionario_id: null,
     data_saida: new Date(),
     status: 'preparacao',
-    observacao: ''
+    observacao: '',
+    valor_unitario: '',
+    valor_total: '',
+    tipo_pagamento: 'dinheiro'
   });
-
+  const [dataEntrega, setDataEntrega] = useState(null);
+  const [quantidadeDevolvida, setQuantidadeDevolvida] = useState('');
+  const [motivoDevolucao, setMotivoDevolucao] = useState('');
   const [estoques, setEstoques] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [veiculos, setVeiculos] = useState([]);
   const [funcionarios, setFuncionarios] = useState([]);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showDatePickerEntrega, setShowDatePickerEntrega] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
   // Carrega dados necessários
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
-        setLoading(true);
-        
-        // Busca estoques disponíveis
         const { data: estoquesData, error: estoquesError } = await supabase
           .from('estoque')
           .select('id, nome, quantidade')
           .gt('quantidade', 0)
           .order('nome', { ascending: true });
-
-        // Busca clientes
         const { data: clientesData, error: clientesError } = await supabase
           .from('cliente')
           .select('id, nome')
           .order('nome', { ascending: true });
-
-        // Busca veículos
         const { data: veiculosData, error: veiculosError } = await supabase
           .from('veiculo')
           .select('id, placa, modelo')
           .order('placa', { ascending: true });
-
-        // Busca funcionários
         const { data: funcionariosData, error: funcionariosError } = await supabase
           .from('funcionario')
           .select('id, nome')
@@ -77,20 +58,16 @@ export default function CadastroEntregas({ navigation }) {
         if (estoquesError || clientesError || veiculosError || funcionariosError) {
           throw estoquesError || clientesError || veiculosError || funcionariosError;
         }
-
         setEstoques(estoquesData || []);
         setClientes(clientesData || []);
         setVeiculos(veiculosData || []);
         setFuncionarios(funcionariosData || []);
-
       } catch (error) {
         Alert.alert('Erro', 'Não foi possível carregar os dados necessários');
-        console.error('Erro ao carregar dados:', error);
       } finally {
         setLoading(false);
       }
     };
-
     fetchData();
   }, []);
 
@@ -101,22 +78,18 @@ export default function CadastroEntregas({ navigation }) {
     if (!formData.cliente_id) newErrors.cliente = 'Selecione um cliente';
     if (!formData.veiculo_id) newErrors.veiculo = 'Selecione um veículo';
     if (!formData.funcionario_id) newErrors.funcionario = 'Selecione um funcionário';
-    
-    // Verifica se há estoque suficiente
     if (formData.estoque_id && formData.quantidade) {
       const estoque = estoques.find(e => e.id === formData.estoque_id);
       if (parseInt(formData.quantidade) > (estoque?.quantidade || 0)) {
         newErrors.quantidade = `Quantidade excede o disponível (${estoque?.quantidade})`;
       }
     }
-    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
-
     setLoading(true);
     try {
       const entregaData = {
@@ -125,36 +98,28 @@ export default function CadastroEntregas({ navigation }) {
         cliente_id: formData.cliente_id,
         veiculo_id: formData.veiculo_id,
         funcionario_id: formData.funcionario_id,
-        data_saida: formData.data_saida.toISOString(),
+        data_saida: formData.data_saida ? formData.data_saida.toISOString() : null,
+        data_entrega: dataEntrega ? dataEntrega.toISOString() : null,
         status: formData.status,
-        observacao: formData.observacao.trim() || null,
-        criado_em: new Date().toISOString()
+        quantidade_devolvida: quantidadeDevolvida ? parseInt(quantidadeDevolvida) : null,
+        motivo_devolucao: motivoDevolucao || null,
+        observacao: formData.observacao || null,
+        valor_unitario: formData.valor_unitario || null,
+        valor_total: formData.valor_total || null,
+        tipo_pagamento: formData.tipo_pagamento || null
       };
 
-      // Insere a entrega
-      const { data: entrega, error } = await supabase
-        .from('entrega')
-        .insert([entregaData])
-        .single();
-
-      if (error) throw error;
-
-      // Atualiza o estoque (diminui a quantidade)
-      const { error: updateError } = await supabase
-        .from('estoque')
-        .update({ quantidade: supabase.rpc('decrement', {
-          column: 'quantidade',
-          value: parseInt(formData.quantidade)
-        })})
-        .eq('id', formData.estoque_id);
-
-      if (updateError) throw updateError;
+      const state = await NetInfo.fetch();
+      if (state.isConnected) {
+        const { error } = await supabase.from('entrega').insert([entregaData]);
+        if (error) throw error;
+      } else {
+        await databaseService.insertWithUUID('entrega', entregaData);
+      }
 
       Alert.alert('Sucesso', 'Entrega registrada com sucesso!');
       navigation.goBack();
-
     } catch (error) {
-      console.error('Erro ao registrar entrega:', error);
       Alert.alert('Erro', error.message || 'Falha ao registrar entrega');
     } finally {
       setLoading(false);
@@ -172,7 +137,7 @@ export default function CadastroEntregas({ navigation }) {
               styles.pickerOption,
               selectedId === item.id && styles.pickerOptionSelected
             ]}
-            onPress={() => setFormData({...formData, [fieldName]: item.id})}
+            onPress={() => setFormData({ ...formData, [fieldName]: item.id })}
           >
             <Text style={selectedId === item.id ? styles.pickerTextSelected : styles.pickerText}>
               {item.nome || `${item.placa} - ${item.modelo}`}
@@ -189,56 +154,42 @@ export default function CadastroEntregas({ navigation }) {
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#043b57" barStyle="light-content" />
-      
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Image 
+            <Image
               source={require('../../../Assets/logo.png')}
               style={styles.logo}
               resizeMode="contain"
             />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('Error')}>
-            <Image 
-              source={require('../../../Assets/alerta.png')} 
+            <Image
+              source={require('../../../Assets/alerta.png')}
               style={styles.alerta}
               resizeMode="contain"
             />
           </TouchableOpacity>
         </View>
       </View>
-
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>REGISTRO DE ENTREGAS</Text>
-          
-          {/* Seletor de Item do Estoque */}
           {renderPicker(estoques, formData.estoque_id, 'estoque_id', 'Item do Estoque')}
-
-          {/* Quantidade */}
           <TextInput
             label="Quantidade*"
             value={formData.quantidade}
-            onChangeText={text => setFormData({...formData, quantidade: text})}
+            onChangeText={text => setFormData({ ...formData, quantidade: text })}
             style={styles.input}
             keyboardType="numeric"
             error={!!errors.quantidade}
           />
           {errors.quantidade && <Text style={styles.errorText}>{errors.quantidade}</Text>}
-
-          {/* Seletor de Cliente */}
           {renderPicker(clientes, formData.cliente_id, 'cliente_id', 'Cliente')}
-
-          {/* Seletor de Veículo */}
           {renderPicker(veiculos, formData.veiculo_id, 'veiculo_id', 'Veículo')}
-
-          {/* Seletor de Funcionário */}
           {renderPicker(funcionarios, formData.funcionario_id, 'funcionario_id', 'Funcionário Responsável')}
-
-          {/* Data */}
           <Text style={styles.label}>Data e Hora de Saída*</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.dateInput}
             onPress={() => setShowDatePicker(true)}
           >
@@ -253,25 +204,85 @@ export default function CadastroEntregas({ navigation }) {
               display="default"
               onChange={(event, selectedDate) => {
                 setShowDatePicker(false);
-                if (selectedDate) {
-                  setFormData({...formData, data_saida: selectedDate});
-                }
+                if (selectedDate) setFormData({ ...formData, data_saida: selectedDate });
               }}
             />
           )}
-
-          {/* Observações */}
           <TextInput
             label="Observações (Opcional)"
             value={formData.observacao}
-            onChangeText={text => setFormData({...formData, observacao: text})}
+            onChangeText={text => setFormData({ ...formData, observacao: text })}
             style={styles.input}
             multiline
             numberOfLines={3}
           />
-
-          <Button 
-            mode="contained" 
+          <Text style={styles.label}>Data de Entrega (Opcional)</Text>
+          <TouchableOpacity
+            style={styles.dateInput}
+            onPress={() => setShowDatePickerEntrega(true)}
+          >
+            <Text style={styles.dateText}>
+              {dataEntrega ? dataEntrega.toLocaleString('pt-BR') : 'Selecione'}
+            </Text>
+          </TouchableOpacity>
+          {showDatePickerEntrega && (
+            <DateTimePicker
+              value={dataEntrega || new Date()}
+              mode="datetime"
+              display="default"
+              onChange={(event, selectedDate) => {
+                setShowDatePickerEntrega(false);
+                if (selectedDate) setDataEntrega(selectedDate);
+              }}
+            />
+          )}
+          <TextInput
+            label="Quantidade Devolvida (Opcional)"
+            value={quantidadeDevolvida}
+            onChangeText={setQuantidadeDevolvida}
+            style={styles.input}
+            keyboardType="numeric"
+          />
+          <TextInput
+            label="Motivo da Devolução (Opcional)"
+            value={motivoDevolucao}
+            onChangeText={setMotivoDevolucao}
+            style={styles.input}
+            multiline
+          />
+          <TextInput
+            label="Valor Unitário"
+            value={formData.valor_unitario}
+            onChangeText={text => setFormData({ ...formData, valor_unitario: text })}
+            style={styles.input}
+            keyboardType="numeric"
+          />
+          <TextInput
+            label="Valor Total"
+            value={formData.valor_total}
+            onChangeText={text => setFormData({ ...formData, valor_total: text })}
+            style={styles.input}
+            keyboardType="numeric"
+          />
+          <Text style={styles.label}>Tipo de Pagamento</Text>
+          <View style={styles.radioGroup}>
+            {['dinheiro', 'boleto', 'cheque', 'vale', 'pix', 'cartao'].map(tipo => (
+              <TouchableOpacity
+                key={tipo}
+                style={[
+                  styles.radioButton,
+                  formData.tipo_pagamento === tipo && styles.radioButtonSelected
+                ]}
+                onPress={() => setFormData({ ...formData, tipo_pagamento: tipo })}
+              >
+                <Text style={formData.tipo_pagamento === tipo ? styles.radioTextSelected : styles.radioText}>
+                  {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Button
+            mode="contained"
             onPress={handleSubmit}
             style={styles.registerButton}
             labelStyle={styles.buttonLabel}
@@ -310,6 +321,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 70,
     marginRight: 20,
+    marginBottom: 8,
   },
   scrollContent: {
     padding: 20,
@@ -320,6 +332,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     padding: 20,
     marginBottom: 20,
+    borderWidth: 1,
   },
   sectionTitle: {
     fontSize: 20,
@@ -331,6 +344,7 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: 'white',
     marginBottom: 15,
+    color: '#043b57',
   },
   errorText: {
     color: 'red',
@@ -341,15 +355,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     color: '#043b57',
     fontWeight: 'bold',
-  },
-  dateInput: {
-    backgroundColor: 'white',
-    padding: 15,
-    borderRadius: 5,
-    marginBottom: 15,
-  },
-  dateText: {
-    fontSize: 16,
   },
   pickerContainer: {
     marginBottom: 15,
@@ -372,6 +377,15 @@ const styles = StyleSheet.create({
   pickerTextSelected: {
     color: 'white',
   },
+  dateInput: {
+    backgroundColor: 'white',
+    padding: 15,
+    borderRadius: 5,
+    marginBottom: 15,
+  },
+  dateText: {
+    fontSize: 16,
+  },
   registerButton: {
     backgroundColor: '#043b57',
     marginTop: 20,
@@ -382,5 +396,29 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  radioGroup: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 15,
+  },
+  radioButton: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: '#043b57',
+    borderRadius: 5,
+    padding: 10,
+    marginRight: 10,
+    marginBottom: 10,
+  },
+  radioButtonSelected: {
+    backgroundColor: '#043b57',
+  },
+  radioText: {
+    marginLeft: 8,
+    color: '#043b57',
+  },
+  radioTextSelected: {
+    color: 'white',
   },
 });

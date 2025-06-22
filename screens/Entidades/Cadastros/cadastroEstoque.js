@@ -1,31 +1,10 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
+import NetInfo from '@react-native-community/netinfo';
 import { useState } from 'react';
 import { Alert, Image, ScrollView, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
 import { supabase } from '../../../contexts/supabaseClient';
-import { cadastrarEstoque } from '../script/cadastrosService';
-
-const handleSalvar = async () => {
-  try {
-    const resultado = await cadastrarEstoque({
-      nome,
-      quantidade,
-      numero_serie,
-      tipo,
-      data_aquisicao,
-      data_validade,
-      peso,
-      valor,
-      modalidade,
-      observacao,
-      funcionario_id,
-      cliente_id
-    });
-    alert('Estoque cadastrado via: ' + resultado.origem);
-  } catch (err) {
-    alert('Erro no cadastro: ' + err.message);
-  }
-};
+import { databaseService } from '../../../services/localDatabase';
 
 export default function CadastroEstoque({ navigation }) {
   const [formData, setFormData] = useState({
@@ -39,19 +18,21 @@ export default function CadastroEstoque({ navigation }) {
     valor: '',
     modalidade: '',
     observacao: '',
+    funcionario_id: supabase.auth.user()?.id,
+    cliente_id: '',
     disponivel_geral: true,
-    quantidade_reservada: 0,
-    funcionario_id: supabase.auth.user()?.id
+    quantidade_reservada: 0
   });
-
+  const [unidadeMedida, setUnidadeMedida] = useState('un');
+  const [codigoBarras, setCodigoBarras] = useState('');
   const [showDatePickerAquisicao, setShowDatePickerAquisicao] = useState(false);
   const [showDatePickerValidade, setShowDatePickerValidade] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
   const handleChange = (field, value) => {
-    setFormData({...formData, [field]: value});
-    if (errors[field]) setErrors({...errors, [field]: null});
+    setFormData({ ...formData, [field]: value });
+    if (errors[field]) setErrors({ ...errors, [field]: null });
   };
 
   const validateForm = () => {
@@ -60,45 +41,45 @@ export default function CadastroEstoque({ navigation }) {
     if (!formData.quantidade || isNaN(formData.quantidade)) newErrors.quantidade = 'Quantidade inválida';
     if (!formData.valor || isNaN(formData.valor)) newErrors.valor = 'Valor inválido';
     if (!formData.data_aquisicao) newErrors.data_aquisicao = 'Data obrigatória';
-    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
-
     setLoading(true);
     try {
-      const produtoData = {
+      const estoqueData = {
         nome: formData.nome.trim(),
-        numero_serie: formData.numero_serie.trim() || null,
         quantidade: parseInt(formData.quantidade),
-        tipo: formData.tipo.trim() || null,
-        data_aquisicao: formData.data_aquisicao.toISOString(),
-        data_validade: formData.data_validade ? formData.data_validade.toISOString() : null,
+        numero_serie: formData.numero_serie?.trim() || null,
+        tipo: formData.tipo,
+        data_aquisicao: formData.data_aquisicao?.toISOString().split('T')[0] || null,
+        data_validade: formData.data_validade?.toISOString().split('T')[0] || null,
         peso: formData.peso ? parseFloat(formData.peso) : null,
-        valor: parseFloat(formData.valor),
-        modalidade: formData.modalidade.trim() || null,
-        observacao: formData.observacao.trim() || null,
+        valor: formData.valor ? parseFloat(formData.valor) : null,
+        modalidade: formData.modalidade || null,
+        observacao: formData.observacao?.trim() || null,
+        funcionario_id: formData.funcionario_id,
+        cliente_id: formData.cliente_id || null,
+        unidade_medida: unidadeMedida || null,
+        codigo_barras: codigoBarras || null,
         disponivel_geral: formData.disponivel_geral,
-        quantidade_reservada: formData.quantidade_reservada,
-        funcionario_id: formData.funcionario_id
+        quantidade_reservada: formData.quantidade_reservada || 0
       };
 
-      const { data, error } = await supabase
-        .from('estoque')
-        .insert([produtoData])
-        .single();
+      const state = await NetInfo.fetch();
+      if (state.isConnected) {
+        const { error } = await supabase.from('estoque').insert([estoqueData]);
+        if (error) throw error;
+      } else {
+        await databaseService.insertWithUUID('estoque', estoqueData);
+      }
 
-      if (error) throw error;
-
-      Alert.alert('Sucesso', 'Produto cadastrado com sucesso!');
+      Alert.alert('Sucesso', 'Item de estoque cadastrado com sucesso!');
       navigation.goBack();
-
     } catch (error) {
-      console.error('Erro ao cadastrar produto:', error);
-      Alert.alert('Erro', error.message || 'Falha ao cadastrar produto');
+      Alert.alert('Erro', error.message || 'Falha ao cadastrar estoque');
     } finally {
       setLoading(false);
     }
@@ -107,30 +88,27 @@ export default function CadastroEstoque({ navigation }) {
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#043b57" barStyle="light-content" />
-      
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Image 
+            <Image
               source={require('../../../Assets/logo.png')}
               style={styles.logo}
               resizeMode="contain"
             />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('Error')}>
-            <Image 
-              source={require('../../../Assets/alerta.png')} 
+            <Image
+              source={require('../../../Assets/alerta.png')}
               style={styles.alerta}
               resizeMode="contain"
             />
           </TouchableOpacity>
         </View>
       </View>
-
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>CADASTRO DE PRODUTO</Text>
-          
           <TextInput
             label="Nome do Produto*"
             value={formData.nome}
@@ -179,7 +157,7 @@ export default function CadastroEstoque({ navigation }) {
           />
 
           <Text style={styles.label}>Data de Aquisição*</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.dateInput}
             onPress={() => setShowDatePickerAquisicao(true)}
           >
@@ -201,7 +179,7 @@ export default function CadastroEstoque({ navigation }) {
           {errors.data_aquisicao && <Text style={styles.errorText}>{errors.data_aquisicao}</Text>}
 
           <Text style={styles.label}>Data de Validade</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.dateInput}
             onPress={() => setShowDatePickerValidade(true)}
           >
@@ -228,6 +206,32 @@ export default function CadastroEstoque({ navigation }) {
             style={styles.input}
           />
 
+          <Text style={styles.label}>Unidade de Medida *</Text>
+          <View style={styles.radioGroup}>
+            {['kg', 'g', 'l', 'ml', 'un'].map((item) => (
+              <TouchableOpacity
+                key={item}
+                style={[
+                  styles.radioButton,
+                  unidadeMedida === item && styles.radioButtonSelected
+                ]}
+                onPress={() => setUnidadeMedida(item)}
+              >
+                <Text style={unidadeMedida === item ? styles.radioTextSelected : styles.radioText}>
+                  {item.toUpperCase()}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <TextInput
+            label="Código de Barras (Opcional)"
+            value={codigoBarras}
+            onChangeText={setCodigoBarras}
+            style={styles.input}
+            keyboardType="numeric"
+          />
+
           <TextInput
             label="Modalidade"
             value={formData.modalidade}
@@ -244,8 +248,8 @@ export default function CadastroEstoque({ navigation }) {
             numberOfLines={3}
           />
 
-          <Button 
-            mode="contained" 
+          <Button
+            mode="contained"
             onPress={handleSubmit}
             style={styles.registerButton}
             labelStyle={styles.buttonLabel}
@@ -284,6 +288,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 70,
     marginRight: 20,
+    marginBottom: 8,
   },
   scrollContent: {
     padding: 20,
@@ -294,6 +299,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     padding: 20,
     marginBottom: 20,
+    borderWidth: 1,
   },
   sectionTitle: {
     fontSize: 20,
@@ -305,6 +311,7 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: 'white',
     marginBottom: 15,
+    color: '#043b57',
   },
   halfInput: {
     flex: 1,
@@ -344,5 +351,29 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  radioGroup: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 15,
+  },
+  radioButton: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: '#043b57',
+    borderRadius: 5,
+    padding: 10,
+    marginRight: 10,
+    marginBottom: 10,
+  },
+  radioButtonSelected: {
+    backgroundColor: '#043b57',
+  },
+  radioText: {
+    marginLeft: 8,
+    color: '#043b57',
+  },
+  radioTextSelected: {
+    color: 'white',
   },
 });

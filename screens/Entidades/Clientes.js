@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Alert, FlatList, Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
-import { supabase } from '../../contexts/supabaseClient';
+import { databaseService } from '../../services/localDatabase';
 import styles from '../../styles/EstilosdeEntidade';
+import { getAllLocal } from '../../utils/localEntityService';
 
 export default function ClientesScreen({ navigation }) {
   const [clientes, setClientes] = useState([]);
@@ -15,30 +16,7 @@ export default function ClientesScreen({ navigation }) {
   const fetchClientes = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('cliente')
-        .select(`
-          id,
-          nome,
-          cpf,
-          cnpj,
-          rg,
-          tipo,
-          observacao,
-          created_at,
-          endereco:endereco_id(
-            cep,
-            uf,
-            cidade,
-            bairro,
-            rua,
-            numero,
-            complemento
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      const data = await getAllLocal('cliente');
       setClientes(data || []);
     } catch (error) {
       Alert.alert('Erro', error.message);
@@ -64,12 +42,7 @@ export default function ClientesScreen({ navigation }) {
           text: "Excluir", 
           onPress: async () => {
             try {
-              const { error } = await supabase
-                .from('cliente')
-                .delete()
-                .eq('id', id);
-              
-              if (error) throw error;
+              await databaseService.deleteById('cliente', id); // <-- Troquei aqui!
               await fetchClientes();
             } catch (error) {
               Alert.alert('Erro', 'Não foi possível excluir o cliente: ' + error.message);

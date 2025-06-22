@@ -63,7 +63,7 @@ export const PUBLIC_ROUTES = [
   { name: 'TelaInicial', component: TelaInicialScreen },
   { name: 'Login', component: LoginScreen },
   { name: 'CadastroUser', component: CadastroUserScreen },
-  { name: 'Esqueciasenha', component: EsqueciMinhaSenhaScreen}
+  { name: 'EsqueciMinhaSenha', component: EsqueciMinhaSenhaScreen }
 ];
 
 // Telas de cadastro (acessíveis para todos logados)

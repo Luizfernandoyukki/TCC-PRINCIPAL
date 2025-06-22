@@ -1,25 +1,10 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
+import NetInfo from '@react-native-community/netinfo';
 import { useEffect, useState } from 'react';
 import { Alert, Image, ScrollView, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, Checkbox, Text, TextInput } from 'react-native-paper';
 import { supabase } from '../../../contexts/supabaseClient';
-import { cadastrarPedido } from '../script/cadastrosService';
-
-const handleSalvar = async () => {
-  try {
-    const resultado = await cadastrarPedido({
-      estoque_id,
-      quantidade,
-      cliente_id,
-      status,
-      observacao,
-      criado_por
-    });
-    alert('Pedido cadastrado via: ' + resultado.origem);
-  } catch (err) {
-    alert('Erro no cadastro: ' + err.message);
-  }
-};
+import { databaseService } from '../../../services/localDatabase';
 
 export default function CadastroPedidos({ navigation }) {
   const [formData, setFormData] = useState({
@@ -30,7 +15,10 @@ export default function CadastroPedidos({ navigation }) {
     status: 'pendente',
     observacao: '',
     nota: false,
-    criado_por: supabase.auth.user()?.id
+    criado_por: supabase.auth.user()?.id,
+    valor_unitario: '',
+    valor_total: '',
+    tipo_pagamento: 'dinheiro'
   });
 
   const [estoques, setEstoques] = useState([]);
@@ -38,21 +26,19 @@ export default function CadastroPedidos({ navigation }) {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [prazoEntrega, setPrazoEntrega] = useState('');
 
   // Carrega dados necessários
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        
-        // Busca estoques disponíveis
         const { data: estoquesData, error: estoquesError } = await supabase
           .from('estoque')
           .select('id, nome, quantidade')
           .gt('quantidade', 0)
           .order('nome', { ascending: true });
 
-        // Busca clientes
         const { data: clientesData, error: clientesError } = await supabase
           .from('cliente')
           .select('id, nome')
@@ -64,15 +50,12 @@ export default function CadastroPedidos({ navigation }) {
 
         setEstoques(estoquesData || []);
         setClientes(clientesData || []);
-
       } catch (error) {
         Alert.alert('Erro', 'Não foi possível carregar os dados necessários');
-        console.error('Erro ao carregar dados:', error);
       } finally {
         setLoading(false);
       }
     };
-
     fetchData();
   }, []);
 
@@ -81,22 +64,18 @@ export default function CadastroPedidos({ navigation }) {
     if (!formData.estoque_id) newErrors.estoque = 'Selecione um item';
     if (!formData.cliente_id) newErrors.cliente = 'Selecione um cliente';
     if (!formData.quantidade || isNaN(formData.quantidade)) newErrors.quantidade = 'Quantidade inválida';
-    
-    // Verifica se há estoque suficiente
     if (formData.estoque_id && formData.quantidade) {
       const estoque = estoques.find(e => e.id === formData.estoque_id);
       if (parseInt(formData.quantidade) > (estoque?.quantidade || 0)) {
         newErrors.quantidade = `Quantidade excede o disponível (${estoque?.quantidade})`;
       }
     }
-    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
-
     setLoading(true);
     try {
       const pedidoData = {
@@ -106,34 +85,25 @@ export default function CadastroPedidos({ navigation }) {
         data_pedido: formData.data_pedido.toISOString(),
         status: formData.status,
         observacao: formData.observacao.trim() || null,
-        nota: formData.nota,
-        criado_por: formData.criado_por
+        nota: formData.nota ? 1 : 0,
+        criado_por: formData.criado_por,
+        valor_unitario: formData.valor_unitario ? parseFloat(formData.valor_unitario) : null,
+        valor_total: formData.valor_total ? parseFloat(formData.valor_total) : null,
+        tipo_pagamento: formData.tipo_pagamento,
+        prazo_entrega: prazoEntrega || null
       };
 
-      // Insere o pedido
-      const { data: pedido, error } = await supabase
-        .from('pedido')
-        .insert([pedidoData])
-        .single();
-
-      if (error) throw error;
-
-      // Reserva o estoque
-      const { error: updateError } = await supabase
-        .from('estoque')
-        .update({ quantidade_reservada: supabase.rpc('increment', {
-          column: 'quantidade_reservada',
-          value: parseInt(formData.quantidade)
-        })})
-        .eq('id', formData.estoque_id);
-
-      if (updateError) throw updateError;
+      const state = await NetInfo.fetch();
+      if (state.isConnected) {
+        const { error } = await supabase.from('pedido').insert([pedidoData]);
+        if (error) throw error;
+      } else {
+        await databaseService.insertWithUUID('pedido', pedidoData);
+      }
 
       Alert.alert('Sucesso', 'Pedido registrado com sucesso!');
       navigation.goBack();
-
     } catch (error) {
-      console.error('Erro ao registrar pedido:', error);
       Alert.alert('Erro', error.message || 'Falha ao registrar pedido');
     } finally {
       setLoading(false);
@@ -168,7 +138,6 @@ export default function CadastroPedidos({ navigation }) {
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#043b57" barStyle="light-content" />
-      
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -187,18 +156,11 @@ export default function CadastroPedidos({ navigation }) {
           </TouchableOpacity>
         </View>
       </View>
-
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>REGISTRO DE PEDIDOS</Text>
-          
-          {/* Seletor de Cliente */}
           {renderPicker(clientes, formData.cliente_id, 'cliente_id', 'Cliente')}
-
-          {/* Seletor de Item do Estoque */}
           {renderPicker(estoques, formData.estoque_id, 'estoque_id', 'Item do Estoque')}
-
-          {/* Quantidade */}
           <TextInput
             label="Quantidade*"
             value={formData.quantidade}
@@ -208,8 +170,27 @@ export default function CadastroPedidos({ navigation }) {
             error={!!errors.quantidade}
           />
           {errors.quantidade && <Text style={styles.errorText}>{errors.quantidade}</Text>}
-
-          {/* Data */}
+          <TextInput
+            label="Valor Unitário"
+            value={formData.valor_unitario}
+            onChangeText={text => setFormData({...formData, valor_unitario: text})}
+            style={styles.input}
+            keyboardType="numeric"
+          />
+          <TextInput
+            label="Valor Total"
+            value={formData.valor_total}
+            onChangeText={text => setFormData({...formData, valor_total: text})}
+            style={styles.input}
+            keyboardType="numeric"
+          />
+          <TextInput
+            label="Prazo de Entrega (Opcional)"
+            value={prazoEntrega}
+            onChangeText={setPrazoEntrega}
+            style={styles.input}
+            placeholder="Ex: 5 dias úteis"
+          />
           <Text style={styles.label}>Data do Pedido*</Text>
           <TouchableOpacity 
             style={styles.dateInput}
@@ -232,8 +213,23 @@ export default function CadastroPedidos({ navigation }) {
               }}
             />
           )}
-
-          {/* Nota Fiscal */}
+          <Text style={styles.label}>Tipo de Pagamento</Text>
+          <View style={styles.radioGroup}>
+            {['dinheiro','boleto','cheque','vale','pix','cartao'].map(tipo => (
+              <TouchableOpacity
+                key={tipo}
+                style={[
+                  styles.radioButton,
+                  formData.tipo_pagamento === tipo && styles.radioButtonSelected
+                ]}
+                onPress={() => setFormData({...formData, tipo_pagamento: tipo})}
+              >
+                <Text style={formData.tipo_pagamento === tipo ? styles.radioTextSelected : styles.radioText}>
+                  {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
           <View style={styles.checkboxContainer}>
             <Checkbox
               status={formData.nota ? 'checked' : 'unchecked'}
@@ -242,8 +238,6 @@ export default function CadastroPedidos({ navigation }) {
             />
             <Text style={styles.checkboxLabel}>Possui Nota Fiscal</Text>
           </View>
-
-          {/* Observações */}
           <TextInput
             label="Observações (Opcional)"
             value={formData.observacao}
@@ -252,7 +246,6 @@ export default function CadastroPedidos({ navigation }) {
             multiline
             numberOfLines={3}
           />
-
           <Button 
             mode="contained" 
             onPress={handleSubmit}
@@ -374,5 +367,93 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  radioGroup: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+  },
+  radioButton: {
+    flex: 1,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 5,
+    marginRight: 10,
+    backgroundColor: '#f9f9f9',
+    alignItems: 'center',
+  },
+  radioButtonSelected: {
+    backgroundColor: '#043b57',
+    borderColor: '#043b57',
+  },
+  radioText: {
+    color: '#333',
+  },
+  radioTextSelected: {
+    color: 'white',
+  },
+  pickerOption: {
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 5,
+    marginBottom: 8,
+    backgroundColor: '#f9f9f9',
+  },
+  pickerOptionSelected: {
+    backgroundColor: '#043b57',
+    borderColor: '#043b57',
+  },
+  pickerText: {
+    color: '#333',
+  },
+  pickerTextSelected: {
+    color: 'white',
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  checkboxLabel: {
+    marginLeft: 8,
+    color: '#043b57',
+  },
+  registerButton: {
+    backgroundColor: '#043b57',
+    marginTop: 20,
+    paddingVertical: 5,
+    borderRadius: 25,
+  },
+  buttonLabel: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  radioGroup: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+  },
+  radioButton: {
+    flex: 1,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 5,
+    marginRight: 10,
+    backgroundColor: '#f9f9f9',
+    alignItems: 'center',
+  },
+  radioButtonSelected: {
+    backgroundColor: '#043b57',
+    borderColor: '#043b57',
+  },
+  radioText: {
+    color: '#333',
+  },
+  radioTextSelected: {
+    color: 'white',
   },
 });

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Alert, FlatList, Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
-import { supabase } from '../../contexts/supabaseClient';
+import { databaseService } from '../../services/localDatabase';
 import styles from '../../styles/EstilosdeEntidade';
+import { getAllLocal } from '../../utils/localEntityService';
 
 export default function DevolucaoScreen({ navigation }) {
   const [devolucoes, setDevolucoes] = useState([]);
@@ -15,21 +16,18 @@ export default function DevolucaoScreen({ navigation }) {
   const fetchDevolucoes = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('devolucao')
-        .select(`
-          id,
-          quantidade,
-          motivo,
-          data_devolucao,
-          observacao,
-          criado_em,
-          estoque:estoque_id(nome, numero_serie),
-          responsavel:responsavel_id(nome)
-        `)
-        .order('data_devolucao', { ascending: false });
-
-      if (error) throw error;
+      let data = await getAllLocal('devolucao');
+      // Busca estoques e responsáveis para montar os relacionamentos
+      const estoques = await getAllLocal('estoque');
+      const funcionarios = await getAllLocal('funcionario');
+      // Monta os relacionamentos manualmente
+      data = data.map(dev => ({
+        ...dev,
+        estoque: estoques.find(e => e.id === dev.estoque_id) || {},
+        responsavel: funcionarios.find(f => f.id === dev.responsavel_id) || {}
+      }));
+      // Ordena por data_devolucao decrescente
+      data = data.sort((a, b) => new Date(b.data_devolucao) - new Date(a.data_devolucao));
       setDevolucoes(data || []);
     } catch (error) {
       Alert.alert('Erro', error.message);
@@ -55,12 +53,7 @@ export default function DevolucaoScreen({ navigation }) {
           text: "Excluir", 
           onPress: async () => {
             try {
-              const { error } = await supabase
-                .from('devolucao')
-                .delete()
-                .eq('id', id);
-              
-              if (error) throw error;
+              await databaseService.deleteById('devolucao', id);
               await fetchDevolucoes();
             } catch (error) {
               Alert.alert('Erro', 'Não foi possível excluir a devolução: ' + error.message);

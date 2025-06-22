@@ -1,7 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React, { useEffect } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Alert, View } from 'react-native';
 import 'react-native-url-polyfill/auto';
 
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -31,53 +31,52 @@ function AppRoutes() {
   const [userRole, setUserRole] = React.useState(null);
   const [dbInitialized, setDbInitialized] = React.useState(false); // Novo estado para controle do banco local
 
-useEffect(() => {
-  const interval = setInterval(() => {
-    SyncService.syncAllTables()
-      .then((result) => console.log('Sincronização periódica:', result))
-      .catch((error) => console.error('Erro na sincronização periódica:', error));
-  }, 10 * 60 * 1000); // 10 minutos
-
-  return () => clearInterval(interval);
-}, []);
-
-  
-useEffect(() => {
-  console.log('SQLite:', SQLite);
-  console.log('SQLite.openDatabase:', SQLite.openDatabase);
-
-  const initializeLocalDB = async () => {
-    try {
-      console.log('Inicializando banco de dados local...');
-      await initDatabase();
-      console.log('Banco de dados local inicializado com sucesso');
-      setDbInitialized(true);
-      
-      // Verifica se há dados para sincronizar
-      SyncService.syncAllTables().catch(error => {
-        console.log('Sincronização inicial falhou, continuando em modo offline:', error);
-      });
-    } catch (error) {
-      console.error('Falha ao inicializar banco local:', error);
-      Alert.alert(
-        'Aviso', 
-        'O banco de dados local não pôde ser inicializado. Alguns recursos offline podem não estar disponíveis.'
-      );
-      setDbInitialized(true); // Continua mesmo com erro
+  // Adicione este useEffect para definir o userRole após login
+  React.useEffect(() => {
+    if (user) {
+      // Exemplo: supondo que user.role exista
+      setUserRole(user.role || 1); // 1 = ADMIN padrão
+    } else {
+      setUserRole(null);
     }
-  };
+  }, [user]);
 
-  initializeLocalDB();
+  useEffect(() => {
+    console.log('SQLite:', SQLite);
+    console.log('SQLite.openDatabase:', SQLite.openDatabase);
 
-  // Sincronização periódica
-  const interval = setInterval(() => {
-    SyncService.syncAllTables()
-      .then((result) => console.log('Sincronização periódica:', result))
-      .catch((error) => console.error('Erro na sincronização periódica:', error));
-  }, 10 * 60 * 1000); // 10 minutos
+    const initializeLocalDB = async () => {
+      try {
+        console.log('Inicializando banco de dados local...');
+        await initDatabase();
+        console.log('Banco de dados local inicializado com sucesso');
+        setDbInitialized(true);
+        
+        // Verifica se há dados para sincronizar
+        SyncService.syncAllTables().catch(error => {
+          console.log('Sincronização inicial falhou, continuando em modo offline:', error);
+        });
+      } catch (error) {
+        console.error('Falha ao inicializar banco local:', error);
+        Alert.alert(
+          'Aviso', 
+          'O banco de dados local não pôde ser inicializado. Alguns recursos offline podem não estar disponíveis.'
+        );
+        setDbInitialized(true); // Continua mesmo com erro
+      }
+    };
 
-  return () => clearInterval(interval);
-}, []);
+    initializeLocalDB();
+
+    // Sincronização periódica
+    const interval = setInterval(() => {
+      SyncService.syncAllTables()
+        .then((result) => console.log('Sincronização periódica:', result))
+        .catch((error) => console.error('Erro na sincronização periódica:', error));
+    }, 10 * 60 * 1000); // 10 minutos
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Aguarda tanto o carregamento do auth quanto a inicialização do banco local
   if (loading || (user && !userRole) || !dbInitialized) {

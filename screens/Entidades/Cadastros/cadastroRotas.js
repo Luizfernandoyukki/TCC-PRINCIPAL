@@ -1,29 +1,10 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
+import NetInfo from '@react-native-community/netinfo';
 import { useEffect, useState } from 'react';
 import { Alert, Image, ScrollView, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
 import { supabase } from '../../../contexts/supabaseClient';
-import { cadastrarRota } from '../script/cadastrosService';
-
-const handleSalvar = async () => {
-  try {
-    const resultado = await cadastrarRota({
-      nome,
-      destino,
-      distancia,
-      horario_partida,
-      veiculo_id,
-      funcionario_id,
-      clientes_id,
-      observacao,
-      status,
-      tempo_medio_minutos
-    });
-    alert('Rota cadastrada via: ' + resultado.origem);
-  } catch (err) {
-    alert('Erro no cadastro: ' + err.message);
-  }
-};
+import { databaseService } from '../../../services/localDatabase';
 
 export default function CadastroRotas({ navigation }) {
   const [formData, setFormData] = useState({
@@ -37,7 +18,8 @@ export default function CadastroRotas({ navigation }) {
     data_rota: new Date(),
     observacao: '',
     status: 'pendente',
-    tempo_medio_minutos: ''
+    tempo_medio_minutos: '',
+    combustivel_necessario: ''
   });
 
   const [veiculos, setVeiculos] = useState([]);
@@ -52,13 +34,12 @@ export default function CadastroRotas({ navigation }) {
     const fetchData = async () => {
       try {
         setLoading(true);
-        
         const [
           { data: veiculosData, error: veiculosError },
           { data: funcionariosData, error: funcionariosError },
           { data: clientesData, error: clientesError }
         ] = await Promise.all([
-          supabase.from('veiculo').select('id, placa, modelo').order('placa'),
+          supabase.from('veiculo').select('id, placa, modelo, consumo_medio').order('placa'),
           supabase.from('funcionario').select('id, nome').order('nome'),
           supabase.from('cliente').select('id, nome').order('nome')
         ]);
@@ -70,15 +51,12 @@ export default function CadastroRotas({ navigation }) {
         setVeiculos(veiculosData || []);
         setFuncionarios(funcionariosData || []);
         setClientes(clientesData || []);
-
       } catch (error) {
         Alert.alert('Erro', 'Não foi possível carregar os dados necessários');
-        console.error('Erro ao carregar dados:', error);
       } finally {
         setLoading(false);
       }
     };
-
     fetchData();
   }, []);
 
@@ -91,6 +69,23 @@ export default function CadastroRotas({ navigation }) {
     }));
   };
 
+  const calculateFuel = () => {
+    if (formData.distancia && formData.veiculo_id) {
+      const veiculoSelecionado = veiculos.find(v => v.id === formData.veiculo_id);
+      if (veiculoSelecionado && veiculoSelecionado.consumo_medio) {
+        const combustivel = (parseFloat(formData.distancia) / veiculoSelecionado.consumo_medio).toFixed(2);
+        setFormData(prev => ({
+          ...prev,
+          combustivel_necessario: combustivel
+        }));
+      }
+    }
+  };
+
+  useEffect(() => {
+    calculateFuel();
+  }, [formData.distancia, formData.veiculo_id]);
+
   const validateForm = () => {
     const newErrors = {};
     if (!formData.nome.trim()) newErrors.nome = 'Campo obrigatório';
@@ -99,14 +94,12 @@ export default function CadastroRotas({ navigation }) {
     if (!formData.veiculo_id) newErrors.veiculo = 'Selecione um veículo';
     if (!formData.funcionario_id) newErrors.funcionario = 'Selecione um motorista';
     if (formData.clientes_id.length === 0) newErrors.clientes = 'Selecione pelo menos um cliente';
-    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
-
     setLoading(true);
     try {
       const rotaData = {
@@ -118,23 +111,23 @@ export default function CadastroRotas({ navigation }) {
         funcionario_id: formData.funcionario_id,
         clientes_id: formData.clientes_id,
         data_rota: formData.data_rota.toISOString().split('T')[0],
-        observacao: formData.observacao.trim() || null,
+        observacao: formData.observacao?.trim() || null,
         status: formData.status,
-        tempo_medio_minutos: formData.tempo_medio_minutos ? parseInt(formData.tempo_medio_minutos) : 0
+        tempo_medio_minutos: formData.tempo_medio_minutos ? parseInt(formData.tempo_medio_minutos) : null,
+        combustivel_necessario: formData.combustivel_necessario ? parseFloat(formData.combustivel_necessario) : null
       };
 
-      const { data, error } = await supabase
-        .from('rota')
-        .insert([rotaData])
-        .single();
-
-      if (error) throw error;
+      const state = await NetInfo.fetch();
+      if (state.isConnected) {
+        const { error } = await supabase.from('rota').insert([rotaData]);
+        if (error) throw error;
+      } else {
+        await databaseService.insertWithUUID('rota', rotaData);
+      }
 
       Alert.alert('Sucesso', 'Rota cadastrada com sucesso!');
       navigation.goBack();
-
     } catch (error) {
-      console.error('Erro ao cadastrar rota:', error);
       Alert.alert('Erro', error.message || 'Falha ao cadastrar rota');
     } finally {
       setLoading(false);
@@ -169,7 +162,6 @@ export default function CadastroRotas({ navigation }) {
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#043b57" barStyle="light-content" />
-      
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -188,11 +180,9 @@ export default function CadastroRotas({ navigation }) {
           </TouchableOpacity>
         </View>
       </View>
-
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>CADASTRO DE ROTA</Text>
-          
           <TextInput
             label="Nome da Rota*"
             value={formData.nome}
@@ -229,13 +219,18 @@ export default function CadastroRotas({ navigation }) {
             keyboardType="numeric"
           />
 
-          {/* Seletor de Veículo */}
-          {renderPicker(veiculos, formData.veiculo_id, 'veiculo_id', 'Veículo')}
+          <TextInput
+            label="Combustível Necessário (litros)"
+            value={formData.combustivel_necessario}
+            onChangeText={text => setFormData({...formData, combustivel_necessario: text})}
+            style={styles.input}
+            keyboardType="numeric"
+            editable={false}
+          />
 
-          {/* Seletor de Motorista */}
+          {renderPicker(veiculos, formData.veiculo_id, 'veiculo_id', 'Veículo')}
           {renderPicker(funcionarios, formData.funcionario_id, 'funcionario_id', 'Motorista')}
 
-          {/* Data da Rota */}
           <Text style={styles.label}>Data da Rota*</Text>
           <TouchableOpacity 
             style={styles.dateInput}
@@ -257,7 +252,6 @@ export default function CadastroRotas({ navigation }) {
             />
           )}
 
-          {/* Horário de Partida */}
           <Text style={styles.label}>Horário de Partida*</Text>
           <TouchableOpacity 
             style={styles.dateInput}
@@ -279,7 +273,6 @@ export default function CadastroRotas({ navigation }) {
             />
           )}
 
-          {/* Lista de Clientes */}
           <Text style={styles.label}>Clientes*</Text>
           <View style={styles.pickerContainer}>
             {clientes.map(cliente => (
