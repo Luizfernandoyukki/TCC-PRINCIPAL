@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, FlatList, Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../contexts/supabaseClient';
+import { databaseService } from '../../services/localDatabase';
 import styles from '../../styles/EstilosdeEntidade';
 
 export default function CargosFuncoesScreen({ navigation }) {
@@ -10,28 +11,46 @@ export default function CargosFuncoesScreen({ navigation }) {
     abaAtiva: 'cargos' // 'cargos' ou 'funcoes'
   });
   const [loading, setLoading] = useState(true);
+  const [useLocalData, setUseLocalData] = useState(false);
 
   useEffect(() => {
     fetchDados();
-  }, []);
+  }, [useLocalData]);
 
   const fetchDados = async () => {
     setLoading(true);
     try {
-      const [cargos, funcoes] = await Promise.all([
-        supabase.from('cargo').select('id, nome, descricao').order('nome'),
-        supabase.from('funcao').select('id, nome, descricao').order('nome')
-      ]);
+      if (useLocalData) {
+        // Versão local
+        const [cargos, funcoes] = await Promise.all([
+          databaseService.select('cargo'),
+          databaseService.select('funcao')
+        ]);
 
-      if (cargos.error || funcoes.error) throw cargos.error || funcoes.error;
+        setDados({
+          cargos: cargos || [],
+          funcoes: funcoes || [],
+          abaAtiva: dados.abaAtiva
+        });
+      } else {
+        // Versão Supabase
+        const [cargos, funcoes] = await Promise.all([
+          supabase.from('cargo').select('id, nome, descricao').order('nome'),
+          supabase.from('funcao').select('id, nome, descricao').order('nome')
+        ]);
 
-      setDados({
-        cargos: cargos.data || [],
-        funcoes: funcoes.data || [],
-        abaAtiva: dados.abaAtiva
-      });
+        if (cargos.error || funcoes.error) throw cargos.error || funcoes.error;
+
+        setDados({
+          cargos: cargos.data || [],
+          funcoes: funcoes.data || [],
+          abaAtiva: dados.abaAtiva
+        });
+      }
     } catch (error) {
       Alert.alert('Erro', error.message);
+      // Se falhar com Supabase, tenta com dados locais
+      if (!useLocalData) setUseLocalData(true);
     } finally {
       setLoading(false);
     }
@@ -50,12 +69,16 @@ export default function CargosFuncoesScreen({ navigation }) {
           text: "Excluir", 
           onPress: async () => {
             try {
-              const { error } = await supabase
-                .from(tipo)
-                .delete()
-                .eq('id', id);
-              
-              if (error) throw error;
+              if (useLocalData) {
+                await databaseService.delete(tipo, 'id = ?', [id]);
+              } else {
+                const { error } = await supabase
+                  .from(tipo)
+                  .delete()
+                  .eq('id', id);
+                
+                if (error) throw error;
+              }
               await fetchDados();
             } catch (error) {
               Alert.alert('Erro', `Não foi possível excluir: ${error.message}`);
@@ -69,7 +92,10 @@ export default function CargosFuncoesScreen({ navigation }) {
   const renderItem = ({ item, tipo }) => (
     <View style={styles.itemContainer}>
       <TouchableOpacity 
-        style={styles.itemBox}
+        style={[
+          styles.itemBox,
+          useLocalData && { borderLeftWidth: 3, borderLeftColor: '#4CAF50' }
+        ]}
         onPress={() => navigation.navigate('DetalhesCargoFuncao', { 
           id: item.id, 
           tipo,
@@ -78,9 +104,12 @@ export default function CargosFuncoesScreen({ navigation }) {
         })}
       >
         <View style={{ flex: 1 }}>
-          <Text style={styles.itemTitle}>{item.nome}</Text>
+          <Text style={styles.itemTitle}>
+            {item.nome}
+            {useLocalData && ' 📱'} {/* Ícone para dados locais */}
+          </Text>
           {item.descricao && (
-            <Text style={styles.itemSubtitle} numberOfLines={1}>
+            <Text style={styles.itemSubtitle} numberOfLines={2}>
               {item.descricao}
             </Text>
           )}
@@ -122,13 +151,23 @@ export default function CargosFuncoesScreen({ navigation }) {
               resizeMode="contain"
             />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalADM')}>
-            <Image 
-              source={require('../../Assets/ADM.png')} 
-              style={styles.alerta}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
+          <View style={styles.headerRightActions}>
+            <TouchableOpacity 
+              onPress={() => setUseLocalData(!useLocalData)}
+              style={styles.dataSourceToggle}
+            >
+              <Text style={styles.dataSourceText}>
+                {useLocalData ? 'Usar Nuvem' : 'Usar Local'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalADM')}>
+              <Image 
+                source={require('../../Assets/ADM.png')} 
+                style={styles.alerta}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 

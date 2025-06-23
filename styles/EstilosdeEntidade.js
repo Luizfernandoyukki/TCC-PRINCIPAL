@@ -399,7 +399,154 @@ emptyText: {
   textAlign: 'center',
   marginTop: 20,
   color: '#666'
-}
+},
+headerRightActions: {
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+dataSourceToggle: {
+  marginRight: 15,
+  padding: 5,
+  backgroundColor: '#f0f0f0',
+  borderRadius: 5,
+},
+dataSourceText: {
+  fontSize: 12,
+  color: '#043b57',
+},
+detailRow: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  marginBottom: 5,
+},
+detailLabel: {
+  fontWeight: 'bold',
+  color: '#555',
+},
+detailValue: {
+  flex: 1,
+  marginLeft: 10,
+  textAlign: 'right',
+},
+itemStatus: {
+  color: '#F44336',
+  fontSize: 12,
+  fontWeight: 'bold',
+},
+headerRightActions: {
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+dataSourceToggle: {
+  marginRight: 15,
+  padding: 5,
+  backgroundColor: '#f0f0f0',
+  borderRadius: 5,
+},
+dataSourceText: {
+  fontSize: 12,
+  color: '#043b57',
+},
+funcionarioFoto: {
+  width: 50,
+  height: 50,
+  borderRadius: 25,
+  marginRight: 10,
+},
+detailSection: {
+  marginBottom: 15,
+  borderBottomWidth: 1,
+  borderBottomColor: '#eee',
+  paddingBottom: 10,
+},
+sectionTitle: {
+  fontWeight: 'bold',
+  color: '#043b57',
+  marginBottom: 8,
+  fontSize: 16,
+},
+detailRow: {
+  flexDirection: 'row',
+  marginBottom: 5,
+},
+detailLabel: {
+  fontWeight: 'bold',
+  width: 120,
+  color: '#555',
+},
+detailValue: {
+  flex: 1,
+},
+itemStatus: {
+  fontSize: 12,
+  fontWeight: 'bold',
+  paddingVertical: 2,
+  paddingHorizontal: 6,
+  borderRadius: 10,
+},
+activeStatus: {
+  backgroundColor: '#e8f5e9',
+  color: '#2e7d32',
+},
+inactiveStatus: {
+  backgroundColor: '#ffebee',
+  color: '#c62828',
+},
+adminBadge: {
+  backgroundColor: '#bbdefb',
+  color: '#0d47a1',
+  fontSize: 10,
+  fontWeight: 'bold',
+  paddingVertical: 2,
+  paddingHorizontal: 6,
+  borderRadius: 10,
+  marginTop: 4,
+},
+headerRightActions: {
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+dataSourceToggle: {
+  marginRight: 15,
+  padding: 5,
+  backgroundColor: '#f0f0f0',
+  borderRadius: 5,
+},
+dataSourceText: {
+  fontSize: 12,
+  color: '#043b57',
+},
+tabContainer: {
+  flexDirection: 'row',
+  marginBottom: 15,
+  borderBottomWidth: 1,
+  borderBottomColor: '#ddd',
+},
+tabButton: {
+  flex: 1,
+  paddingVertical: 12,
+  alignItems: 'center',
+  borderBottomWidth: 2,
+  borderBottomColor: 'transparent',
+},
+tabButtonActive: {
+  borderBottomColor: '#043b57',
+},
+tabButtonText: {
+  color: '#666',
+  fontWeight: 'bold',
+},
+tabButtonTextActive: {
+  color: '#043b57',
+},
+itemActions: {
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+actionText: {
+  color: '#043b57',
+  fontWeight: 'bold',
+},
 });
 
 export default styles;

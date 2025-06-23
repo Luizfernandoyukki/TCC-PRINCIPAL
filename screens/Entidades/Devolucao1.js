@@ -122,7 +122,7 @@ export default function DevolucaoScreen({ navigation }) {
               resizeMode="contain"
             />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalADM')}>
+          <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalEXP')}>
             <Image 
               source={require('../../Assets/EXP.png')} 
               style={styles.alerta}

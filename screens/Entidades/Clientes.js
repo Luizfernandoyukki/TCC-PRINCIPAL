@@ -16,7 +16,16 @@ export default function ClientesScreen({ navigation }) {
   const fetchClientes = async () => {
     setLoading(true);
     try {
-      const data = await getAllLocal('cliente');
+      // Busca clientes e endereços para montar os relacionamentos
+      const clientesData = await getAllLocal('cliente');
+      const enderecos = await getAllLocal('endereco');
+      
+      // Monta os relacionamentos manualmente
+      const data = clientesData.map(cliente => ({
+        ...cliente,
+        endereco: enderecos.find(e => e.id === cliente.endereco_id) || null
+      }));
+      
       setClientes(data || []);
     } catch (error) {
       Alert.alert('Erro', error.message);
@@ -42,7 +51,7 @@ export default function ClientesScreen({ navigation }) {
           text: "Excluir", 
           onPress: async () => {
             try {
-              await databaseService.deleteById('cliente', id); // <-- Troquei aqui!
+              await databaseService.deleteById('cliente', id);
               await fetchClientes();
             } catch (error) {
               Alert.alert('Erro', 'Não foi possível excluir o cliente: ' + error.message);
@@ -59,7 +68,6 @@ export default function ClientesScreen({ navigation }) {
         style={styles.itemBox}
         onPress={() => toggleExpand(item.id)}
       >
-        {/* Cabeçalho sempre visível */}
         <View style={styles.itemHeader}>
           <Text style={styles.itemTitle}>{item.nome}</Text>
           <TouchableOpacity 
@@ -73,7 +81,6 @@ export default function ClientesScreen({ navigation }) {
           </TouchableOpacity>
         </View>
         
-        {/* Conteúdo expandível */}
         {expandedId === item.id && (
           <View style={styles.expandedContent}>
             <Text style={styles.itemDetail}>Tipo: {item.tipo}</Text>
@@ -83,11 +90,25 @@ export default function ClientesScreen({ navigation }) {
             <Text style={styles.itemDetail}>
               Cadastrado em: {new Date(item.created_at).toLocaleDateString('pt-BR')}
             </Text>
-            <Text style={styles.itemDetail}>
-              Endereço: {item.endereco 
-                ? `${item.endereco.rua}, ${item.endereco.numero} - ${item.endereco.bairro}`
-                : 'Não cadastrado'}
-            </Text>
+            
+            {/* Mostrando os dados de endereço se existirem */}
+            {item.endereco && (
+              <>
+                <Text style={styles.itemDetail}>
+                  Endereço: {item.endereco.rua}, {item.endereco.numero} - {item.endereco.bairro}
+                </Text>
+                <Text style={styles.itemDetail}>
+                  Cidade: {item.endereco.cidade}/{item.endereco.uf}
+                </Text>
+                <Text style={styles.itemDetail}>
+                  CEP: {item.endereco.cep}
+                </Text>
+                {item.endereco.complemento && (
+                  <Text style={styles.itemDetail}>Complemento: {item.endereco.complemento}</Text>
+                )}
+              </>
+            )}
+            
             {item.observacao && (
               <Text style={styles.itemDetail}>Observações: {item.observacao}</Text>
             )}

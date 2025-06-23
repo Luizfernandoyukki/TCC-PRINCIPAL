@@ -1,38 +1,65 @@
 import { useEffect, useState } from 'react';
-import { FlatList, Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../contexts/supabaseClient';
+import { databaseService } from '../../services/localDatabase';
 import styles from '../../styles/EstilosdeEntidade';
 
-export default function EstoquePDOScreen({ navigation }) {
+export default function EstoqueScreen({ navigation }) {
   const [itens, setItens] = useState([]);
   const [expandedId, setExpandedId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [useLocalData, setUseLocalData] = useState(false);
 
   useEffect(() => {
     fetchItensEstoque();
-  }, []);
+  }, [useLocalData]);
 
   const fetchItensEstoque = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('estoque')
-        .select(`
-          id,
-          nome,
-          quantidade,
-          quantidade_reservada,
-          numero_serie,
-          tipo,
-          data_validade,
-          disponivel_geral
-        `)
-        .order('nome', { ascending: true });
+      if (useLocalData) {
+        // Versão local com relacionamentos padrão
+        const estoqueData = await databaseService.select('estoque');
+        const clientes = await databaseService.select('cliente');
+        const funcionarios = await databaseService.select('funcionario');
 
-      if (error) throw error;
-      setItens(data || []);
+        const data = estoqueData.map(item => ({
+          ...item,
+          cliente: clientes.find(c => c.id === item.cliente_id) || null,
+          funcionario: funcionarios.find(f => f.id === item.funcionario_id) || null
+        }));
+
+        // Ordenar por nome
+        data.sort((a, b) => a.nome.localeCompare(b.nome));
+        setItens(data || []);
+      } else {
+        // Versão original com Supabase
+        const { data, error } = await supabase
+          .from('estoque')
+          .select(`
+            id,
+            nome,
+            quantidade,
+            quantidade_reservada,
+            numero_serie,
+            tipo,
+            data_validade,
+            valor,
+            modalidade,
+            observacao,
+            disponivel_geral,
+            cliente:cliente_id(nome),
+            funcionario:funcionario_id(nome)
+          `)
+          .order('nome', { ascending: true });
+
+        if (error) throw error;
+        setItens(data || []);
+      }
     } catch (error) {
-      console.error('Erro ao carregar estoque:', error);
+      Alert.alert('Erro', error.message);
+      // Se falhar com Supabase, tenta com dados locais
+      if (!useLocalData) setUseLocalData(true);
     } finally {
       setLoading(false);
     }
@@ -41,24 +68,30 @@ export default function EstoquePDOScreen({ navigation }) {
   const calcularDisponivel = (quantidade, reservada) => {
     return quantidade - reservada;
   };
+  };
 
   const renderItem = ({ item }) => {
     const disponivel = calcularDisponivel(item.quantidade, item.quantidade_reservada);
     const estaDisponivel = disponivel > 0 && item.disponivel_geral;
+    const estaVencido = item.data_validade && new Date(item.data_validade) < new Date();
 
     return (
       <View style={styles.itemContainer}>
         <TouchableOpacity 
           style={[
             styles.itemBox,
-            !item.disponivel_geral && { backgroundColor: '#f5f5f5' }
+            !item.disponivel_geral && { backgroundColor: '#ffeeee' },
+            estaVencido && { borderLeftWidth: 4, borderLeftColor: '#F44336' }
           ]}
           onPress={() => setExpandedId(expandedId === item.id ? null : item.id)}
         >
           <View style={styles.itemHeader}>
             <View style={{ flex: 1 }}>
               <Text style={styles.itemTitle}>{item.nome}</Text>
-              <Text style={styles.itemSubtitle}>{item.tipo || 'Sem tipo definido'}</Text>
+              <Text style={styles.itemSubtitle}>
+                {item.tipo || 'Sem tipo definido'}
+                {useLocalData && ' 📱'} {/* Ícone para dados locais */}
+              </Text>
             </View>
             
             <View style={{ alignItems: 'flex-end' }}>
@@ -76,22 +109,86 @@ export default function EstoquePDOScreen({ navigation }) {
 
           {expandedId === item.id && (
             <View style={styles.expandedContent}>
-              <Text style={styles.itemDetail}>Total em estoque: {item.quantidade}</Text>
-              <Text style={styles.itemDetail}>Reservado: {item.quantidade_reservada}</Text>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Total:</Text>
+                <Text style={styles.detailValue}>{item.quantidade}</Text>
+              </View>
+              
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Reservado:</Text>
+                <Text style={styles.detailValue}>{item.quantidade_reservada}</Text>
+              </View>
+              
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Disponível:</Text>
+                <Text style={[styles.detailValue, { color: estaDisponivel ? '#4CAF50' : '#F44336' }]}>
+                  {disponivel}
+                </Text>
+              </View>
+              
+              {item.valor && (
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Valor unitário:</Text>
+                  <Text style={styles.detailValue}>R$ {item.valor.toFixed(2)}</Text>
+                </View>
+              )}
               
               {item.numero_serie && (
-                <Text style={styles.itemDetail}>N° Série: {item.numero_serie}</Text>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>N° Série:</Text>
+                  <Text style={styles.detailValue}>{item.numero_serie}</Text>
+                </View>
               )}
               
               {item.data_validade && (
-                <Text style={[
-                  styles.itemDetail,
-                  new Date(item.data_validade) < new Date() && { color: '#F44336' }
-                ]}>
-                  Validade: {new Date(item.data_validade).toLocaleDateString('pt-BR')}
-                  {new Date(item.data_validade) < new Date() && ' (VENCIDO)'}
-                </Text>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Validade:</Text>
+                  <Text style={[
+                    styles.detailValue,
+                    estaVencido && { color: '#F44336' }
+                  ]}>
+                    {new Date(item.data_validade).toLocaleDateString('pt-BR')}
+                    {estaVencido && ' (VENCIDO)'}
+                  </Text>
+                </View>
               )}
+              
+              {item.cliente && (
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Cliente:</Text>
+                  <Text style={styles.detailValue}>{item.cliente.nome}</Text>
+                </View>
+              )}
+              
+              {item.funcionario && (
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Responsável:</Text>
+                  <Text style={styles.detailValue}>{item.funcionario.nome}</Text>
+                </View>
+              )}
+              
+              <View style={styles.actionButtons}>
+                <TouchableOpacity 
+                  style={[styles.actionButton, styles.viewButton]}
+                  onPress={() => navigation.navigate('MovimentarEstoque', { itemId: item.id })}
+                >
+                  <Text style={styles.actionButtonText}>Movimentar</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.actionButton, styles.editButton]}
+                  onPress={() => navigation.navigate('EditarEstoque', { itemId: item.id })}
+                >
+                  <Text style={styles.actionButtonText}>Editar</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.actionButton, styles.deleteButton]}
+                  onPress={() => handleDeleteItem(item.id)}
+                >
+                  <Text style={styles.actionButtonText}>Remover</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
         </TouchableOpacity>
@@ -112,26 +209,43 @@ export default function EstoquePDOScreen({ navigation }) {
               resizeMode="contain"
             />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalPDO')}>
-            <Image 
-              source={require('../../Assets/PDO.png')} 
-              style={styles.alerta}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
+          <View style={styles.headerRightActions}>
+            <TouchableOpacity 
+              onPress={() => setUseLocalData(!useLocalData)}
+              style={styles.dataSourceToggle}
+            >
+              <Text style={styles.dataSourceText}>
+                {useLocalData ? 'Usar Nuvem' : 'Usar Local'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalPDO')}>
+              <Image 
+                source={require('../../Assets/PDO.png')} 
+                style={styles.alerta}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
       <View style={styles.content}>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => navigation.navigate('CadastroEstoque')}
+        >
+          <Text style={styles.buttonText}>CADASTRAR ITEM</Text>
+        </TouchableOpacity>
+
         {loading ? (
-          <Text style={styles.emptyText}>Carregando estoque...</Text>
+          <Text style={styles.emptyText}>Carregando itens...</Text>
         ) : (
           <FlatList
             data={itens}
             keyExtractor={item => item.id.toString()}
             renderItem={renderItem}
             ListEmptyComponent={
-              <Text style={styles.emptyText}>Nenhum item no estoque.</Text>
+              <Text style={styles.emptyText}>Nenhum item cadastrado.</Text>
             }
             contentContainerStyle={styles.listContent}
           />
@@ -139,4 +253,3 @@ export default function EstoquePDOScreen({ navigation }) {
       </View>
     </View>
   );
-}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, FlatList, Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
-import { supabase } from '../../contexts/supabaseClient';
 import styles from '../../styles/EstilosdeEntidade';
+import { getAllLocal } from '../../utils/localEntityService';
 
 export default function EntradasScreen({ navigation }) {
   const [entradas, setEntradas] = useState([]);
@@ -15,22 +15,20 @@ export default function EntradasScreen({ navigation }) {
   const fetchEntradas = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('entrada')
-        .select(`
-          id,
-          quantidade,
-          data_entrada,
-          fornecedor,
-          nota,
-          observacao,
-          criado_em,
-          estoque:estoque_id(nome, numero_serie),
-          responsavel:responsavel_id(nome)
-        `)
-        .order('data_entrada', { ascending: false });
-
-      if (error) throw error;
+      // Busca entradas, estoques e funcionários para montar os relacionamentos
+      const entradasData = await getAllLocal('entrada');
+      const estoques = await getAllLocal('estoque');
+      const funcionarios = await getAllLocal('funcionario');
+      
+      // Monta os relacionamentos manualmente
+      const data = entradasData.map(entrada => ({
+        ...entrada,
+        estoque: estoques.find(e => e.id === entrada.estoque_id) || {},
+        responsavel: funcionarios.find(f => f.id === entrada.responsavel_id) || {}
+      }));
+      
+      // Ordena por data_entrada decrescente
+      data.sort((a, b) => new Date(b.data_entrada) - new Date(a.data_entrada));
       setEntradas(data || []);
     } catch (error) {
       Alert.alert('Erro', error.message);
@@ -42,34 +40,6 @@ export default function EntradasScreen({ navigation }) {
   const toggleExpand = (id) => {
     setExpandedId(expandedId === id ? null : id);
   };
-
-  const deleteEntrada = async (id) => {
-    Alert.alert(
-      "Excluir Entrada",
-      "Tem certeza que deseja excluir este registro de entrada?",
-      [
-        {
-          text: "Cancelar",
-          style: "cancel"
-        },
-        { 
-          text: "Excluir", 
-          onPress: async () => {
-            try {
-              const { error } = await supabase
-                .from('entrada')
-                .delete()
-                .eq('id', id);
-              
-              if (error) throw error;
-              await fetchEntradas();
-            } catch (error) {
-              Alert.alert('Erro', 'Não foi possível excluir a entrada: ' + error.message);
-            }
-          }
-        }
-      ]
-    );
   };
 
   const renderNotaFiscal = (nota) => {
@@ -106,11 +76,30 @@ export default function EntradasScreen({ navigation }) {
           <View style={styles.expandedContent}>
             <Text style={styles.itemDetail}>N° Série: {item.estoque.numero_serie || 'N/A'}</Text>
             <Text style={styles.itemDetail}>Data: {new Date(item.data_entrada).toLocaleDateString('pt-BR')}</Text>
+            
+            {/* Mostra informações adicionais do estoque se disponíveis */}
+            {item.estoque.data_validade && (
+              <Text style={styles.itemDetail}>
+                Validade: {new Date(item.estoque.data_validade).toLocaleDateString('pt-BR')}
+              </Text>
+            )}
+            
+            {item.estoque.valor && (
+              <Text style={styles.itemDetail}>
+                Valor unitário: R$ {item.estoque.valor.toFixed(2)}
+              </Text>
+            )}
+            
             {item.fornecedor && (
               <Text style={styles.itemDetail}>Fornecedor: {item.fornecedor}</Text>
             )}
+            
             {renderNotaFiscal(item.nota)}
-            <Text style={styles.itemDetail}>Responsável: {item.responsavel.nome}</Text>
+            
+            <Text style={styles.itemDetail}>
+              Responsável: {item.responsavel.nome || 'Não informado'}
+            </Text>
+            
             {item.observacao && (
               <Text style={styles.itemDetail}>Obs: {item.observacao}</Text>
             )}
@@ -142,7 +131,7 @@ export default function EntradasScreen({ navigation }) {
               resizeMode="contain"
             />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalADM')}>
+          <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalEXP')}>
             <Image 
               source={require('../../Assets/EXP.png')} 
               style={styles.alerta}
@@ -176,4 +165,3 @@ export default function EntradasScreen({ navigation }) {
       </View>
     </View>
   );
-}
