@@ -1,63 +1,101 @@
 import { useEffect, useState } from 'react';
 import { Alert, FlatList, Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../contexts/supabaseClient';
+import { databaseService } from '../../services/localDatabase';
 import styles from '../../styles/EstilosdeEntidade';
 
 export default function RotasScreen({ navigation }) {
   const [rotas, setRotas] = useState([]);
   const [expandedId, setExpandedId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [useLocalData, setUseLocalData] = useState(false);
 
   useEffect(() => {
     fetchRotas();
-  }, []);
+  }, [useLocalData]);
 
   const fetchRotas = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('rota')
-        .select(`
-          id,
-          nome,
-          destino,
-          distancia,
-          tempo_medio_minutos,
-          horario_partida,
-          data_rota,
-          status,
-          observacao,
-          veiculo:veiculo_id(placa, modelo),
-          funcionario:funcionario_id(nome),
-          clientes_id
-        `)
-        .order('data_rota', { ascending: true });
+      if (useLocalData) {
+        // Versão local com relacionamentos padrão
+        const rotasData = await databaseService.select('rota');
+        const veiculos = await databaseService.select('veiculo');
+        const funcionarios = await databaseService.select('funcionario');
+        const clientes = await databaseService.select('cliente');
 
-      if (error) throw error;
-      setRotas(data || []);
+        const data = rotasData.map(rota => ({
+          ...rota,
+          veiculo: veiculos.find(v => v.id === rota.veiculo_id) || {},
+          funcionario: funcionarios.find(f => f.id === rota.funcionario_id) || {},
+          // Transforma clientes_id (string) em array e busca os clientes
+          clientes_id: rota.clientes_id ? JSON.parse(rota.clientes_id) : [],
+          clientes: rota.clientes_id 
+            ? JSON.parse(rota.clientes_id).map(id => 
+                clientes.find(c => c.id === id) || { nome: 'Cliente não encontrado' }
+              )
+            : []
+        }));
+
+        // Ordenar por data
+        data.sort((a, b) => new Date(a.data_rota) - new Date(b.data_rota));
+        setRotas(data || []);
+      } else {
+        // Versão original com Supabase
+        const { data, error } = await supabase
+          .from('rota')
+          .select(`
+            id,
+            nome,
+            destino,
+            distancia,
+            tempo_medio_minutos,
+            horario_partida,
+            data_rota,
+            status,
+            observacao,
+            veiculo:veiculo_id(placa, modelo),
+            funcionario:funcionario_id(nome),
+            clientes_id
+          `)
+          .order('data_rota', { ascending: true });
+
+        if (error) throw error;
+        setRotas(data || []);
+      }
     } catch (error) {
       Alert.alert('Erro', error.message);
+      // Se falhar com Supabase, tenta com dados locais
+      if (!useLocalData) setUseLocalData(true);
     } finally {
       setLoading(false);
     }
   };
 
+  const updateRotaStatus = async (id, status) => {
+    try {
+      if (useLocalData) {
+        await databaseService.update('rota', { status }, 'id = ?', [id]);
+      } else {
+        const { error } = await supabase
+          .from('rota')
+          .update({ status })
+          .eq('id', id);
+        
+        if (error) throw error;
+      }
+      await fetchRotas();
+    } catch (error) {
+      Alert.alert('Erro', `Não foi possível atualizar a rota: ${error.message}`);
+    }
+  };
+
   const iniciarRota = async (id) => {
-    const { error } = await supabase
-      .from('rota')
-      .update({ status: 'em_andamento' })
-      .eq('id', id);
-    
-    if (!error) fetchRotas();
+    await updateRotaStatus(id, 'em_andamento');
   };
 
   const concluirRota = async (id) => {
-    const { error } = await supabase
-      .from('rota')
-      .update({ status: 'concluida' })
-      .eq('id', id);
-    
-    if (!error) fetchRotas();
+    await updateRotaStatus(id, 'concluida');
   };
 
   const cancelarRota = async (id) => {
@@ -72,12 +110,7 @@ export default function RotasScreen({ navigation }) {
         { 
           text: "Sim", 
           onPress: async () => {
-            const { error } = await supabase
-              .from('rota')
-              .update({ status: 'cancelada' })
-              .eq('id', id);
-            
-            if (!error) fetchRotas();
+            await updateRotaStatus(id, 'cancelada');
           }
         }
       ]
@@ -106,27 +139,66 @@ export default function RotasScreen({ navigation }) {
   const renderItem = ({ item }) => (
     <View style={styles.itemContainer}>
       <TouchableOpacity 
-        style={styles.itemBox}
+        style={[
+          styles.itemBox,
+          useLocalData && { borderLeftWidth: 3, borderLeftColor: '#4CAF50' }
+        ]}
         onPress={() => setExpandedId(expandedId === item.id ? null : item.id)}
       >
         <View style={styles.itemHeader}>
-          <Text style={styles.itemTitle}>{item.nome}</Text>
+          <Text style={styles.itemTitle}>
+            {item.nome}
+            {useLocalData && ' 📱'} {/* Ícone para dados locais */}
+          </Text>
           <Text style={styles.itemSubtitle}>{item.destino}</Text>
         </View>
         
         {expandedId === item.id && (
           <View style={styles.expandedContent}>
             {renderStatus(item.status)}
-            <Text style={styles.itemDetail}>Data: {new Date(item.data_rota).toLocaleDateString('pt-BR')}</Text>
-            <Text style={styles.itemDetail}>Horário: {formatTime(item.horario_partida)}</Text>
-            <Text style={styles.itemDetail}>Distância: {item.distancia} km</Text>
-            <Text style={styles.itemDetail}>Tempo estimado: {item.tempo_medio_minutos} min</Text>
-            <Text style={styles.itemDetail}>Veículo: {item.veiculo.modelo} ({item.veiculo.placa})</Text>
-            <Text style={styles.itemDetail}>Motorista: {item.funcionario.nome}</Text>
-            <Text style={styles.itemDetail}>Clientes: {item.clientes_id?.length || 0}</Text>
+            
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Data:</Text>
+              <Text style={styles.detailValue}>{new Date(item.data_rota).toLocaleDateString('pt-BR')}</Text>
+            </View>
+            
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Horário:</Text>
+              <Text style={styles.detailValue}>{formatTime(item.horario_partida)}</Text>
+            </View>
+            
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Distância:</Text>
+              <Text style={styles.detailValue}>{item.distancia} km</Text>
+            </View>
+            
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Tempo estimado:</Text>
+              <Text style={styles.detailValue}>{item.tempo_medio_minutos} min</Text>
+            </View>
+            
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Veículo:</Text>
+              <Text style={styles.detailValue}>{item.veiculo?.modelo || 'N/A'} ({item.veiculo?.placa || '---'})</Text>
+            </View>
+            
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Motorista:</Text>
+              <Text style={styles.detailValue}>{item.funcionario?.nome || 'Não informado'}</Text>
+            </View>
+            
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Clientes:</Text>
+              <Text style={styles.detailValue}>
+                {item.clientes?.length || 0} cliente(s)
+              </Text>
+            </View>
             
             {item.observacao && (
-              <Text style={styles.itemDetail}>Obs: {item.observacao}</Text>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Obs:</Text>
+                <Text style={styles.detailValue}>{item.observacao}</Text>
+              </View>
             )}
             
             <View style={styles.actionButtons}>
@@ -183,13 +255,23 @@ export default function RotasScreen({ navigation }) {
               resizeMode="contain"
             />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalADM')}>
-            <Image 
-              source={require('../../Assets/ADM.png')} 
-              style={styles.alerta}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
+          <View style={styles.headerRightActions}>
+            <TouchableOpacity 
+              onPress={() => setUseLocalData(!useLocalData)}
+              style={styles.dataSourceToggle}
+            >
+              <Text style={styles.dataSourceText}>
+                {useLocalData ? 'Usar Nuvem' : 'Usar Local'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalADM')}>
+              <Image 
+                source={require('../../Assets/ADM.png')} 
+                style={styles.alerta}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 

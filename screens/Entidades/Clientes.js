@@ -1,37 +1,67 @@
 import { useEffect, useState } from 'react';
-import { Alert, FlatList, Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, Image, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { databaseService } from '../../services/localDatabase';
 import styles from '../../styles/EstilosdeEntidade';
 import { getAllLocal } from '../../utils/localEntityService';
 
 export default function ClientesScreen({ navigation }) {
   const [clientes, setClientes] = useState([]);
+  const [filteredClientes, setFilteredClientes] = useState([]);
   const [expandedId, setExpandedId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [filterType, setFilterType] = useState('nome');
 
   useEffect(() => {
     fetchClientes();
   }, []);
 
+  useEffect(() => {
+    handleFilter();
+  }, [search, filterType, clientes]);
+
   const fetchClientes = async () => {
     setLoading(true);
     try {
-      // Busca clientes e endereços para montar os relacionamentos
       const clientesData = await getAllLocal('cliente');
       const enderecos = await getAllLocal('endereco');
-      
-      // Monta os relacionamentos manualmente
       const data = clientesData.map(cliente => ({
         ...cliente,
         endereco: enderecos.find(e => e.id === cliente.endereco_id) || null
       }));
-      
       setClientes(data || []);
     } catch (error) {
       Alert.alert('Erro', error.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFilter = () => {
+    if (!search.trim()) {
+      setFilteredClientes(clientes);
+      return;
+    }
+    const lowerSearch = search.toLowerCase();
+    const filtered = clientes.filter(cliente => {
+      if (filterType === 'nome') {
+        return cliente.nome?.toLowerCase().includes(lowerSearch);
+      }
+      if (filterType === 'tipo') {
+        return cliente.tipo?.toLowerCase().includes(lowerSearch);
+      }
+      if (filterType === 'cpf' && cliente.cpf) {
+        return cliente.cpf.includes(lowerSearch);
+      }
+      if (filterType === 'cnpj' && cliente.cnpj) {
+        return cliente.cnpj.includes(lowerSearch);
+      }
+      if (filterType === 'cidade' && cliente.endereco) {
+        return cliente.endereco.cidade?.toLowerCase().includes(lowerSearch);
+      }
+      return false;
+    });
+    setFilteredClientes(filtered);
   };
 
   const toggleExpand = (id) => {
@@ -90,8 +120,6 @@ export default function ClientesScreen({ navigation }) {
             <Text style={styles.itemDetail}>
               Cadastrado em: {new Date(item.created_at).toLocaleDateString('pt-BR')}
             </Text>
-            
-            {/* Mostrando os dados de endereço se existirem */}
             {item.endereco && (
               <>
                 <Text style={styles.itemDetail}>
@@ -108,11 +136,9 @@ export default function ClientesScreen({ navigation }) {
                 )}
               </>
             )}
-            
             {item.observacao && (
               <Text style={styles.itemDetail}>Observações: {item.observacao}</Text>
             )}
-            
             <View style={styles.actionButtons}>
               <TouchableOpacity 
                 style={[styles.actionButton, styles.viewButton]}
@@ -158,11 +184,67 @@ export default function ClientesScreen({ navigation }) {
           <Text style={styles.buttonText}>NOVO CLIENTE</Text>
         </TouchableOpacity>
 
+        {/* Navbar de filtro */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 10 }}>
+          <TextInput
+            style={[styles.input, { flex: 1, marginRight: 8 }]}
+            placeholder={`Filtrar por ${filterType}`}
+            value={search}
+            onChangeText={setSearch}
+            autoCapitalize="none"
+          />
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              filterType === 'nome' && styles.filterButtonActive
+            ]}
+            onPress={() => setFilterType('nome')}
+          >
+            <Text style={styles.filterButtonText}>Nome</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              filterType === 'tipo' && styles.filterButtonActive
+            ]}
+            onPress={() => setFilterType('tipo')}
+          >
+            <Text style={styles.filterButtonText}>Tipo</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              filterType === 'cpf' && styles.filterButtonActive
+            ]}
+            onPress={() => setFilterType('cpf')}
+          >
+            <Text style={styles.filterButtonText}>CPF</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              filterType === 'cnpj' && styles.filterButtonActive
+            ]}
+            onPress={() => setFilterType('cnpj')}
+          >
+            <Text style={styles.filterButtonText}>CNPJ</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              filterType === 'cidade' && styles.filterButtonActive
+            ]}
+            onPress={() => setFilterType('cidade')}
+          >
+            <Text style={styles.filterButtonText}>Cidade</Text>
+          </TouchableOpacity>
+        </View>
+
         {loading ? (
           <Text style={styles.emptyText}>Carregando clientes...</Text>
         ) : (
           <FlatList
-            data={clientes}
+            data={filteredClientes}
             keyExtractor={item => item.id.toString()}
             renderItem={renderClienteItem}
             ListEmptyComponent={

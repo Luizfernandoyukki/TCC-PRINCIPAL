@@ -64,14 +64,6 @@ export const initDatabase = async () => {
           );`
         );
 
-        // Tabela funcao_veiculo
-        tx.executeSql(
-          `CREATE TABLE IF NOT EXISTS funcao_veiculo (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome TEXT NOT NULL
-          );`
-        );
-
         // Tabela endereco
         tx.executeSql(
           `CREATE TABLE IF NOT EXISTS endereco (
@@ -126,10 +118,26 @@ export const initDatabase = async () => {
             funcao_veiculo_id INTEGER,
             capacidade_kg REAL CHECK (capacidade_kg > 0),
             FOREIGN KEY (funcionario_id) REFERENCES funcionario(id),
-            FOREIGN KEY (funcao_veiculo_id) REFERENCES funcao_veiculo(id)
           );`
         );
-
+        tx.executeSql(
+          `CREATE TABLE IF NOT EXISTS rota (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL,
+            destino TEXT NOT NULL,
+            distancia REAL,
+            horario_partida TEXT NOT NULL,
+            veiculo_id INTEGER NOT NULL,
+            funcionario_id TEXT NOT NULL,
+            clientes_id TEXT, // SQLite não suporta arrays, usamos TEXT e serializamos
+            data_rota TEXT NOT NULL DEFAULT CURRENT_DATE,
+            observacao TEXT,
+            status TEXT NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente', 'em_andamento', 'concluida', 'cancelada')),
+            tempo_medio_minutos INTEGER NOT NULL DEFAULT 0 CHECK (tempo_medio_minutos >= 0),
+            FOREIGN KEY (veiculo_id) REFERENCES veiculo(id),
+            FOREIGN KEY (funcionario_id) REFERENCES funcionario(id)
+          );`
+        );
         // Tabela funcionario (simplificada sem auth.users)
         tx.executeSql(
           `CREATE TABLE IF NOT EXISTS funcionario (
@@ -153,13 +161,10 @@ export const initDatabase = async () => {
             cargo_id INTEGER,
             hierarquia_id INTEGER,
             rota_id INTEGER,
-            horario_id INTEGER,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
             foto_url TEXT,
             superior_id TEXT,
-            status TEXT DEFAULT 'ativo' CHECK (status IN ('ativo', 'inativo', 'ferias', 'licenca')),
-            tipo_contrato TEXT,
             is_admin INTEGER NOT NULL DEFAULT 0 CHECK (is_admin IN (0, 1)),
             is_superior INTEGER NOT NULL DEFAULT 0 CHECK (is_superior IN (0, 1)),
             FOREIGN KEY (genero_id) REFERENCES genero(id),
@@ -228,34 +233,6 @@ export const initDatabase = async () => {
             FOREIGN KEY (cliente_id) REFERENCES cliente(id)
           );`
         );
-
-        // Tabela balanco
-        tx.executeSql(
-          `CREATE TABLE IF NOT EXISTS balanco (
-            id TEXT PRIMARY KEY,
-            nome TEXT NOT NULL,
-            data TEXT NOT NULL DEFAULT CURRENT_DATE,
-            motivo TEXT,
-            periodo TEXT CHECK (periodo IN ('diário', 'semanal', 'mensal', 'anual', 'customizado')),
-            tipo TEXT CHECK (tipo IN ('entrada', 'saída', 'completo')),
-            criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            usuario_id TEXT
-          );`
-        );
-
-        // Tabela balanco_itens
-        tx.executeSql(
-          `CREATE TABLE IF NOT EXISTS balanco_itens (
-            id TEXT PRIMARY KEY,
-            balanco_id TEXT,
-            descricao TEXT NOT NULL,
-            valor REAL NOT NULL,
-            categoria TEXT,
-            tipo TEXT CHECK (tipo IN ('entrada', 'saída')),
-            FOREIGN KEY (balanco_id) REFERENCES balanco(id)
-          );`
-        );
-
         // Tabela pedido
         tx.executeSql(
           `CREATE TABLE IF NOT EXISTS pedido (
@@ -486,6 +463,46 @@ export const initDatabase = async () => {
             SELECT RAISE(ABORT, 'Quantidade reservada maior que disponível');
           END;`
         );
+        // Trigger para entrega realizada (cria saida automática)
+          tx.executeSql(
+            `CREATE TRIGGER IF NOT EXISTS entrega_realizada
+            AFTER UPDATE ON entrega
+            WHEN NEW.status = 'entregue' AND OLD.status != 'entregue'
+            BEGIN
+              INSERT INTO saida (
+                tipo, origem_id, estoque_id, quantidade, cliente_id,
+                veiculo_id, funcionario_id, motivo, nota
+              ) VALUES (
+                'entrega', NEW.id, NEW.estoque_id, NEW.quantidade, NEW.cliente_id,
+                NEW.veiculo_id, NEW.funcionario_id, 'Entrega realizada', NEW.nota
+              );
+            END;`
+          );
+
+          // Trigger para verificar conflitos de rota
+          tx.executeSql(
+            `CREATE TRIGGER IF NOT EXISTS antes_atualizar_rota
+            BEFORE INSERT OR UPDATE ON rota
+            BEGIN
+              -- Verifica conflito de veículo
+              SELECT CASE WHEN EXISTS (
+                SELECT 1 FROM rota 
+                WHERE veiculo_id = NEW.veiculo_id
+                AND id <> NEW.id
+                AND data_rota = NEW.data_rota
+                AND status = 'em_andamento'
+              ) THEN RAISE(ABORT, 'Veículo já está em outra rota nesta data') END;
+              
+              -- Verifica conflito de motorista
+              SELECT CASE WHEN EXISTS (
+                SELECT 1 FROM rota 
+                WHERE funcionario_id = NEW.funcionario_id
+                AND id <> NEW.id
+                AND data_rota = NEW.data_rota
+                AND status = 'em_andamento'
+              ) THEN RAISE(ABORT, 'Motorista já está em outra rota nesta data') END;
+            END;`
+          );
       },
       
        error => {

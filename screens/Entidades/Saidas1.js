@@ -1,43 +1,103 @@
 import { useEffect, useState } from 'react';
 import { Alert, FlatList, Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../contexts/supabaseClient';
+import { databaseService } from '../../services/localDatabase';
 import styles from '../../styles/EstilosdeEntidade';
 
 export default function SaidasScreen({ navigation }) {
   const [saidas, setSaidas] = useState([]);
+  const [expandedId, setExpandedId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [useLocalData, setUseLocalData] = useState(false);
 
   useEffect(() => {
     fetchSaidas();
-  }, []);
+  }, [useLocalData]);
 
   const fetchSaidas = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('saida')
-        .select(`
-          id,
-          tipo,
-          quantidade,
-          data_saida,
-          motivo,
-          observacao,
-          nota,
-          estoque:estoque_id(nome),
-          cliente:cliente_id(nome),
-          veiculo:veiculo_id(placa),
-          funcionario:funcionario_id(nome)
-        `)
-        .order('data_saida', { ascending: false });
+      if (useLocalData) {
+        // Versão local com relacionamentos padrão
+        const saidasData = await databaseService.select('saida');
+        const estoques = await databaseService.select('estoque');
+        const clientes = await databaseService.select('cliente');
+        const veiculos = await databaseService.select('veiculo');
+        const funcionarios = await databaseService.select('funcionario');
 
-      if (error) throw error;
-      setSaidas(data || []);
+        const data = saidasData.map(saida => ({
+          ...saida,
+          estoque: estoques.find(e => e.id === saida.estoque_id) || {},
+          cliente: clientes.find(c => c.id === saida.cliente_id) || null,
+          veiculo: veiculos.find(v => v.id === saida.veiculo_id) || null,
+          funcionario: funcionarios.find(f => f.id === saida.funcionario_id) || {}
+        }));
+
+        // Ordenar por data decrescente
+        data.sort((a, b) => new Date(b.data_saida) - new Date(a.data_saida));
+        setSaidas(data || []);
+      } else {
+        // Versão original com Supabase
+        const { data, error } = await supabase
+          .from('saida')
+          .select(`
+            id,
+            tipo,
+            quantidade,
+            data_saida,
+            motivo,
+            observacao,
+            nota,
+            estoque:estoque_id(nome),
+            cliente:cliente_id(nome),
+            veiculo:veiculo_id(placa),
+            funcionario:funcionario_id(nome)
+          `)
+          .order('data_saida', { ascending: false });
+
+        if (error) throw error;
+        setSaidas(data || []);
+      }
     } catch (error) {
       Alert.alert('Erro', error.message);
+      // Se falhar com Supabase, tenta com dados locais
+      if (!useLocalData) setUseLocalData(true);
     } finally {
       setLoading(false);
     }
+  };
+
+  const deleteSaida = async (id) => {
+    Alert.alert(
+      "Excluir Saída",
+      "Tem certeza que deseja excluir este registro de saída?",
+      [
+        {
+          text: "Cancelar",
+          style: "cancel"
+        },
+        { 
+          text: "Excluir", 
+          onPress: async () => {
+            try {
+              if (useLocalData) {
+                await databaseService.deleteById('saida', id);
+              } else {
+                const { error } = await supabase
+                  .from('saida')
+                  .delete()
+                  .eq('id', id);
+                
+                if (error) throw error;
+              }
+              await fetchSaidas();
+            } catch (error) {
+              Alert.alert('Erro', 'Não foi possível excluir a saída: ' + error.message);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const renderTipo = (tipo) => {
@@ -53,34 +113,104 @@ export default function SaidasScreen({ navigation }) {
     );
   };
 
+  const renderNotaFiscal = (nota) => {
+    return nota ? (
+      <Text style={[styles.itemDetail, styles.checkIcon]}>✓ Com nota fiscal</Text>
+    ) : (
+      <Text style={[styles.itemDetail, styles.xIcon]}>✗ Sem nota fiscal</Text>
+    );
+  };
+
   const renderItem = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.itemBox}
-      onPress={() => navigation.navigate('DetalhesSaida', { saidaId: item.id })}
-    >
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-        <Text style={styles.itemText}>
-          {item.quantidade}x {item.estoque.nome}
-        </Text>
-        {renderTipo(item.tipo)}
-      </View>
-      
-      {item.cliente && (
-        <Text style={styles.itemDetail}>Cliente: {item.cliente.nome}</Text>
-      )}
-      
-      {item.veiculo && (
-        <Text style={styles.itemDetail}>Veículo: {item.veiculo.placa}</Text>
-      )}
-      
-      <Text style={styles.itemDetail}>
-        Data: {new Date(item.data_saida).toLocaleDateString('pt-BR')}
-      </Text>
-      
-      {item.nota && (
-        <Text style={[styles.itemDetail, { color: 'green' }]}>Com nota fiscal</Text>
-      )}
-    </TouchableOpacity>
+    <View style={styles.itemContainer}>
+      <TouchableOpacity 
+        style={[
+          styles.itemBox,
+          useLocalData && { borderLeftWidth: 3, borderLeftColor: '#4CAF50' }
+        ]}
+        onPress={() => setExpandedId(expandedId === item.id ? null : item.id)}
+      >
+        <View style={styles.itemHeader}>
+          <Text style={styles.itemTitle}>
+            {item.estoque?.nome || 'Produto não encontrado'}
+            {useLocalData && ' 📱'} {/* Ícone para dados locais */}
+          </Text>
+          <View style={styles.headerRight}>
+            <Text style={styles.itemQuantity}>{item.quantidade} un.</Text>
+            {renderTipo(item.tipo)}
+          </View>
+        </View>
+        
+        {expandedId === item.id && (
+          <View style={styles.expandedContent}>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Tipo:</Text>
+              <View style={{ flex: 1 }}>
+                {renderTipo(item.tipo)}
+              </View>
+            </View>
+            
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Data:</Text>
+              <Text style={styles.detailValue}>
+                {new Date(item.data_saida).toLocaleString('pt-BR')}
+              </Text>
+            </View>
+            
+            {item.cliente && (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Cliente:</Text>
+                <Text style={styles.detailValue}>{item.cliente.nome}</Text>
+              </View>
+            )}
+            
+            {item.veiculo && (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Veículo:</Text>
+                <Text style={styles.detailValue}>{item.veiculo.placa}</Text>
+              </View>
+            )}
+            
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Responsável:</Text>
+              <Text style={styles.detailValue}>{item.funcionario?.nome || 'Não informado'}</Text>
+            </View>
+            
+            {renderNotaFiscal(item.nota)}
+            
+            {item.motivo && (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Motivo:</Text>
+                <Text style={styles.detailValue}>{item.motivo}</Text>
+              </View>
+            )}
+            
+            {item.observacao && (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Observação:</Text>
+                <Text style={styles.detailValue}>{item.observacao}</Text>
+              </View>
+            )}
+            
+            <View style={styles.actionButtons}>
+              <TouchableOpacity 
+                style={[styles.actionButton, styles.viewButton]}
+                onPress={() => navigation.navigate('DetalhesSaida', { saidaId: item.id })}
+              >
+                <Text style={styles.actionButtonText}>Detalhes</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.actionButton, styles.deleteButton]}
+                onPress={() => deleteSaida(item.id)}
+              >
+                <Text style={styles.actionButtonText}>Excluir</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </TouchableOpacity>
+    </View>
   );
 
   return (
@@ -96,13 +226,23 @@ export default function SaidasScreen({ navigation }) {
               resizeMode="contain"
             />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalADM')}>
-            <Image 
-              source={require('../../Assets/EXP.png')} 
-              style={styles.alerta}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
+          <View style={styles.headerRightActions}>
+            <TouchableOpacity 
+              onPress={() => setUseLocalData(!useLocalData)}
+              style={styles.dataSourceToggle}
+            >
+              <Text style={styles.dataSourceText}>
+                {useLocalData ? 'Usar Nuvem' : 'Usar Local'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalEXP')}>
+              <Image 
+                source={require('../../Assets/EXP.png')} 
+                style={styles.alerta}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 

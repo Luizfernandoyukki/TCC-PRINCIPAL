@@ -547,6 +547,125 @@ actionText: {
   color: '#043b57',
   fontWeight: 'bold',
 },
+headerRightActions: {
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+dataSourceToggle: {
+  marginRight: 15,
+  padding: 5,
+  backgroundColor: '#f0f0f0',
+  borderRadius: 5,
+},
+dataSourceText: {
+  fontSize: 12,
+  color: '#043b57',
+},
+detailRow: {
+  flexDirection: 'row',
+  marginBottom: 8,
+},
+detailLabel: {
+  fontWeight: 'bold',
+  width: 100,
+  color: '#555',
+},
+detailValue: {
+  flex: 1,
+},
+prepareButton: {
+  backgroundColor: '#2196F3',
+},
+dispatchButton: {
+  backgroundColor: '#4CAF50',
+},
+cancelButton: {
+  backgroundColor: '#F44336',
+},
+headerRightActions: {
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+dataSourceToggle: {
+  marginRight: 15,
+  padding: 5,
+  backgroundColor: '#f0f0f0',
+  borderRadius: 5,
+},
+dataSourceText: {
+  fontSize: 12,
+  color: '#043b57',
+},
+detailRow: {
+  flexDirection: 'row',
+  marginBottom: 8,
+},
+detailLabel: {
+  fontWeight: 'bold',
+  width: 120,
+  color: '#555',
+},
+detailValue: {
+  flex: 1,
+},
+startButton: {
+  backgroundColor: '#2196F3',
+},
+completeButton: {
+  backgroundColor: '#4CAF50',
+},
+cancelButton: {
+  backgroundColor: '#F44336',
+},
+headerRightActions: {
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+dataSourceToggle: {
+  marginRight: 15,
+  padding: 5,
+  backgroundColor: '#f0f0f0',
+  borderRadius: 5,
+},
+dataSourceText: {
+  fontSize: 12,
+  color: '#043b57',
+},
+detailRow: {
+  flexDirection: 'row',
+  marginBottom: 8,
+},
+detailLabel: {
+  fontWeight: 'bold',
+  width: 120,
+  color: '#555',
+},
+detailValue: {
+  flex: 1,
+},
+checkIcon: {
+  color: '#4CAF50',
+},
+xIcon: {
+  color: '#F44336',
+},
+deleteButton: {
+  backgroundColor: '#F44336',
+},
+headerRightActions: {
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+dataSourceToggle: {
+  marginRight: 15,
+  padding: 5,
+  backgroundColor: '#f0f0f0',
+  borderRadius: 5,
+},
+dataSourceText: {
+  fontSize: 12,
+  color: '#043b57',
+}
 });
 
 export default styles;

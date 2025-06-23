@@ -1,37 +1,55 @@
 import { useEffect, useState } from 'react';
 import { Alert, FlatList, Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../contexts/supabaseClient';
+import { databaseService } from '../../services/localDatabase'; // Adicionado para operações locais
 import styles from '../../styles/EstilosdeEntidade';
 
 export default function VeiculosScreen({ navigation }) {
   const [veiculos, setVeiculos] = useState([]);
   const [expandedId, setExpandedId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [useLocalData, setUseLocalData] = useState(false); // Estado para alternar entre local/Supabase
 
   useEffect(() => {
     fetchVeiculos();
-  }, []);
+  }, [useLocalData]);
 
   const fetchVeiculos = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('veiculo')
-        .select(`
-          id,
-          placa,
-          modelo,
-          capacidade_kg,
-          observacao,
-          funcionario:funcionario_id(nome),
-          funcao:funcao_veiculo_id(nome)
-        `)
-        .order('modelo', { ascending: true });
+      if (useLocalData) {
+        // Versão local usando o mesmo padrão das outras telas
+        const veiculosData = await databaseService.select('veiculo');
+        const funcionarios = await databaseService.select('funcionario');
+        const data = veiculosData.map(veiculo => ({
+          ...veiculo,
+          funcionario: funcionarios.find(f => f.id === veiculo.funcionario_id) || null
+        }));
 
-      if (error) throw error;
-      setVeiculos(data || []);
+        // Ordenar por modelo
+        data.sort((a, b) => a.modelo.localeCompare(b.modelo));
+        setVeiculos(data || []);
+      } else {
+        // Versão original com Supabase
+        const { data, error } = await supabase
+          .from('veiculo')
+          .select(`
+            id,
+            placa,
+            modelo,
+            capacidade_kg,
+            observacao,
+            funcionario:funcionario_id(nome)
+          `)
+          .order('modelo', { ascending: true });
+
+        if (error) throw error;
+        setVeiculos(data || []);
+      }
     } catch (error) {
       Alert.alert('Erro', error.message);
+      // Se falhar com Supabase, tenta com dados locais
+      if (!useLocalData) setUseLocalData(true);
     } finally {
       setLoading(false);
     }
@@ -50,12 +68,17 @@ export default function VeiculosScreen({ navigation }) {
           text: "Excluir", 
           onPress: async () => {
             try {
-              const { error } = await supabase
-                .from('veiculo')
-                .delete()
-                .eq('id', id);
-              
-              if (!error) fetchVeiculos();
+              if (useLocalData) {
+                await databaseService.deleteById('veiculo', id);
+              } else {
+                const { error } = await supabase
+                  .from('veiculo')
+                  .delete()
+                  .eq('id', id);
+                
+                if (error) throw error;
+              }
+              fetchVeiculos();
             } catch (error) {
               Alert.alert('Erro', 'Não foi possível excluir o veículo');
             }
@@ -68,11 +91,17 @@ export default function VeiculosScreen({ navigation }) {
   const renderItem = ({ item }) => (
     <View style={styles.itemContainer}>
       <TouchableOpacity 
-        style={styles.itemBox}
+        style={[
+          styles.itemBox,
+          useLocalData && { borderLeftWidth: 3, borderLeftColor: '#4CAF50' }
+        ]}
         onPress={() => setExpandedId(expandedId === item.id ? null : item.id)}
       >
         <View style={styles.itemHeader}>
-          <Text style={styles.itemTitle}>{item.modelo}</Text>
+          <Text style={styles.itemTitle}>
+            {item.modelo}
+            {useLocalData && ' 📱'} {/* Ícone para dados locais */}
+          </Text>
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={styles.itemSubtitle}>{item.placa}</Text>
             {item.capacidade_kg && (
@@ -131,13 +160,23 @@ export default function VeiculosScreen({ navigation }) {
               resizeMode="contain"
             />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalADM')}>
-            <Image 
-              source={require('../../Assets/ADM.png')} 
-              style={styles.alerta}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
+          <View style={styles.headerRightActions}>
+            <TouchableOpacity 
+              onPress={() => setUseLocalData(!useLocalData)}
+              style={styles.dataSourceToggle}
+            >
+              <Text style={styles.dataSourceText}>
+                {useLocalData ? 'Usar Nuvem' : 'Usar Local'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalADM')}>
+              <Image 
+                source={require('../../Assets/ADM.png')} 
+                style={styles.alerta}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 

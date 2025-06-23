@@ -1,39 +1,63 @@
 import { useEffect, useState } from 'react';
 import { Alert, FlatList, Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../contexts/supabaseClient';
+import { databaseService } from '../../services/localDatabase';
 import styles from '../../styles/EstilosdeEntidade';
 
 export default function PedidosScreen({ navigation }) {
   const [pedidos, setPedidos] = useState([]);
   const [expandedId, setExpandedId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [useLocalData, setUseLocalData] = useState(false);
 
   useEffect(() => {
     fetchPedidos();
-  }, []);
+  }, [useLocalData]);
 
   const fetchPedidos = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('pedido')
-        .select(`
-          id,
-          quantidade,
-          nota,
-          status,
-          data_pedido,
-          observacao,
-          estoque:estoque_id(nome, quantidade, quantidade_reservada),
-          cliente:cliente_id(nome),
-          funcionario:criado_por(nome)
-        `)
-        .order('data_pedido', { ascending: false });
+      if (useLocalData) {
+        // Versão local com relacionamentos padrão
+        const pedidosData = await databaseService.select('pedido');
+        const estoques = await databaseService.select('estoque');
+        const clientes = await databaseService.select('cliente');
+        const funcionarios = await databaseService.select('funcionario');
 
-      if (error) throw error;
-      setPedidos(data || []);
+        const data = pedidosData.map(pedido => ({
+          ...pedido,
+          estoque: estoques.find(e => e.id === pedido.estoque_id) || {},
+          cliente: clientes.find(c => c.id === pedido.cliente_id) || {},
+          funcionario: funcionarios.find(f => f.id === pedido.criado_por) || {}
+        }));
+
+        // Ordenar por data decrescente
+        data.sort((a, b) => new Date(b.data_pedido) - new Date(a.data_pedido));
+        setPedidos(data || []);
+      } else {
+        // Versão original com Supabase
+        const { data, error } = await supabase
+          .from('pedido')
+          .select(`
+            id,
+            quantidade,
+            nota,
+            status,
+            data_pedido,
+            observacao,
+            estoque:estoque_id(nome, quantidade, quantidade_reservada),
+            cliente:cliente_id(nome),
+            funcionario:criado_por(nome)
+          `)
+          .order('data_pedido', { ascending: false });
+
+        if (error) throw error;
+        setPedidos(data || []);
+      }
     } catch (error) {
       Alert.alert('Erro', error.message);
+      // Se falhar com Supabase, tenta com dados locais
+      if (!useLocalData) setUseLocalData(true);
     } finally {
       setLoading(false);
     }
@@ -52,28 +76,45 @@ export default function PedidosScreen({ navigation }) {
           text: "Despachar", 
           onPress: async () => {
             try {
-              // Primeiro atualiza o status do pedido
-              const { error: pedidoError } = await supabase
-                .from('pedido')
-                .update({ status: 'despachado' })
-                .eq('id', id);
-              
-              if (pedidoError) throw pedidoError;
-
-              // Depois atualiza o estoque (remove a quantidade reservada)
               const pedido = pedidos.find(p => p.id === id);
-              if (pedido) {
+              if (!pedido) throw new Error('Pedido não encontrado');
+
+              if (useLocalData) {
+                // Atualiza localmente
+                await databaseService.update('pedido', 
+                  { status: 'despachado' }, 
+                  'id = ?', 
+                  [id]
+                );
+
+                // Atualiza estoque local
+                const novaQuantidade = pedido.estoque.quantidade - pedido.quantidade;
                 const novaQuantidadeReservada = pedido.estoque.quantidade_reservada - pedido.quantidade;
                 
-                const { error: estoqueError } = await supabase
+                await databaseService.update('estoque',
+                  {
+                    quantidade: novaQuantidade,
+                    quantidade_reservada: novaQuantidadeReservada
+                  },
+                  'id = ?',
+                  [pedido.estoque_id]
+                );
+              } else {
+                // Versão Supabase
+                await supabase
+                  .from('pedido')
+                  .update({ status: 'despachado' })
+                  .eq('id', id);
+                
+                const novaQuantidadeReservada = pedido.estoque.quantidade_reservada - pedido.quantidade;
+                
+                await supabase
                   .from('estoque')
                   .update({ 
                     quantidade_reservada: novaQuantidadeReservada,
                     quantidade: pedido.estoque.quantidade - pedido.quantidade
                   })
                   .eq('id', pedido.estoque_id);
-                
-                if (estoqueError) throw estoqueError;
               }
 
               await fetchPedidos();
@@ -100,25 +141,38 @@ export default function PedidosScreen({ navigation }) {
           text: "Cancelar Pedido", 
           onPress: async () => {
             try {
-              // Primeiro atualiza o status do pedido
-              const { error: pedidoError } = await supabase
-                .from('pedido')
-                .update({ status: 'cancelado' })
-                .eq('id', id);
-              
-              if (pedidoError) throw pedidoError;
-
-              // Depois atualiza o estoque (libera a quantidade reservada)
               const pedido = pedidos.find(p => p.id === id);
-              if (pedido) {
+              if (!pedido) throw new Error('Pedido não encontrado');
+
+              if (useLocalData) {
+                // Atualiza localmente
+                await databaseService.update('pedido', 
+                  { status: 'cancelado' }, 
+                  'id = ?', 
+                  [id]
+                );
+
+                // Atualiza estoque local
                 const novaQuantidadeReservada = pedido.estoque.quantidade_reservada - pedido.quantidade;
                 
-                const { error: estoqueError } = await supabase
+                await databaseService.update('estoque',
+                  { quantidade_reservada: novaQuantidadeReservada },
+                  'id = ?',
+                  [pedido.estoque_id]
+                );
+              } else {
+                // Versão Supabase
+                await supabase
+                  .from('pedido')
+                  .update({ status: 'cancelado' })
+                  .eq('id', id);
+                
+                const novaQuantidadeReservada = pedido.estoque.quantidade_reservada - pedido.quantidade;
+                
+                await supabase
                   .from('estoque')
                   .update({ quantidade_reservada: novaQuantidadeReservada })
                   .eq('id', pedido.estoque_id);
-                
-                if (estoqueError) throw estoqueError;
               }
 
               await fetchPedidos();
@@ -158,11 +212,17 @@ export default function PedidosScreen({ navigation }) {
   const renderItem = ({ item }) => (
     <View style={styles.itemContainer}>
       <TouchableOpacity 
-        style={styles.itemBox}
+        style={[
+          styles.itemBox,
+          useLocalData && { borderLeftWidth: 3, borderLeftColor: '#4CAF50' }
+        ]}
         onPress={() => setExpandedId(expandedId === item.id ? null : item.id)}
       >
         <View style={styles.itemHeader}>
-          <Text style={styles.itemTitle}>{item.estoque.nome}</Text>
+          <Text style={styles.itemTitle}>
+            {item.estoque?.nome || 'Produto não encontrado'}
+            {useLocalData && ' 📱'} {/* Ícone para dados locais */}
+          </Text>
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={styles.itemQuantity}>{item.quantidade} un.</Text>
             {renderStatus(item.status)}
@@ -171,19 +231,36 @@ export default function PedidosScreen({ navigation }) {
         
         {expandedId === item.id && (
           <View style={styles.expandedContent}>
-            <Text style={styles.itemDetail}>Cliente: {item.cliente.nome}</Text>
-            <Text style={styles.itemDetail}>Data: {new Date(item.data_pedido).toLocaleString('pt-BR')}</Text>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Cliente:</Text>
+              <Text style={styles.detailValue}>{item.cliente?.nome || 'Não informado'}</Text>
+            </View>
+            
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Data:</Text>
+              <Text style={styles.detailValue}>{new Date(item.data_pedido).toLocaleString('pt-BR')}</Text>
+            </View>
+            
             {renderNotaFiscal(item.nota)}
             
-            <Text style={styles.itemDetail}>
-              Estoque atual: {item.estoque.quantidade} ({item.estoque.quantidade_reservada} reservado)
-            </Text>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Estoque:</Text>
+              <Text style={styles.detailValue}>
+                {item.estoque?.quantidade || 0} ({item.estoque?.quantidade_reservada || 0} reservado)
+              </Text>
+            </View>
             
             {item.observacao && (
-              <Text style={styles.itemDetail}>Obs: {item.observacao}</Text>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Obs:</Text>
+                <Text style={styles.detailValue}>{item.observacao}</Text>
+              </View>
             )}
             
-            <Text style={styles.itemDetail}>Criado por: {item.funcionario.nome}</Text>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Criado por:</Text>
+              <Text style={styles.detailValue}>{item.funcionario?.nome || 'Não informado'}</Text>
+            </View>
             
             <View style={styles.actionButtons}>
               {item.status === 'pendente' && (
@@ -239,13 +316,23 @@ export default function PedidosScreen({ navigation }) {
               resizeMode="contain"
             />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalADM')}>
-            <Image 
-              source={require('../../Assets/ADM.png')} 
-              style={styles.alerta}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
+          <View style={styles.headerRightActions}>
+            <TouchableOpacity 
+              onPress={() => setUseLocalData(!useLocalData)}
+              style={styles.dataSourceToggle}
+            >
+              <Text style={styles.dataSourceText}>
+                {useLocalData ? 'Usar Nuvem' : 'Usar Local'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalADM')}>
+              <Image 
+                source={require('../../Assets/ADM.png')} 
+                style={styles.alerta}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 

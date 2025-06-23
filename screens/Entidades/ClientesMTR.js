@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, FlatList, Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, Text, TouchableOpacity, View } from 'react-native';
 import styles from '../../styles/EstilosdeEntidade';
 import { getAllLocal } from '../../utils/localEntityService';
 
@@ -103,50 +103,38 @@ export default function ClientesScreen({ navigation }) {
     </View>
   );
 
-  return (
-    <View style={styles.container}>
-      <StatusBar backgroundColor="#043b57" barStyle="light-content" />
-      
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Image 
-              source={require('../../Assets/logo.png')}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalMTR')}>
-            <Image 
-              source={require('../../Assets/MTR.png')} 
-              style={styles.alerta}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
+  {/* Navbar de Filtro */}
+  <View style={styles.filterBar}>
+    <TextInput
+      style={styles.filterInput}
+      placeholder="Filtrar por nome, CPF, CNPJ..."
+      value={filterText}
+      onChangeText={setFilterText}
+    />
+    <TouchableOpacity
+      style={styles.filterButton}
+      onPress={handleFilter}
+    >
+      <Text style={styles.filterButtonText}>Filtrar</Text>
+    </TouchableOpacity>
+    <TouchableOpacity
+      style={styles.clearFilterButton}
+      onPress={handleClearFilter}
+    >
+      <Text style={styles.clearFilterButtonText}>Limpar</Text>
+    </TouchableOpacity>
+  </View>
 
-      <View style={styles.content}>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => navigation.navigate('CadastroClientes')}
-        >
-          <Text style={styles.buttonText}>NOVO CLIENTE</Text>
-        </TouchableOpacity>
-
-        {loading ? (
-          <Text style={styles.emptyText}>Carregando clientes...</Text>
-        ) : (
-          <FlatList
-            data={clientes}
-            keyExtractor={item => item.id.toString()}
-            renderItem={renderClienteItem}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>Nenhum cliente registrado.</Text>
-            }
-            contentContainerStyle={styles.listContent}
-          />
-        )}
-      </View>
-    </View>
-  );
+  {loading ? (
+    <Text style={styles.emptyText}>Carregando clientes...</Text>
+  ) : (
+    <FlatList
+      data={filteredClientes}
+      keyExtractor={item => item.id.toString()}
+      renderItem={renderClienteItem}
+      ListEmptyComponent={
+    <Text style={styles.emptyText}>Nenhum cliente registrado.</Text>
+      }
+      contentContainerStyle={styles.listContent}
+    />
+  )}
