@@ -45,21 +45,21 @@ export default function DevolucaoScreen({ navigation }) {
       "Excluir Devolução",
       "Tem certeza que deseja excluir este registro de devolução?",
       [
-        {
-          text: "Cancelar",
-          style: "cancel"
-        },
-        { 
-          text: "Excluir", 
-          onPress: async () => {
-            try {
-              await databaseService.deleteById('devolucao', id);
-              await fetchDevolucoes();
-            } catch (error) {
-              Alert.alert('Erro', 'Não foi possível excluir a devolução: ' + error.message);
-            }
-          }
+      {
+        text: "Cancelar",
+        style: "cancel"
+      },
+      { 
+        text: "Excluir", 
+        onPress: async () => {
+        try {
+          await databaseService.deleteById('devolucao', id);
+          await fetchDevolucoes();
+        } catch (error) {
+          Alert.alert('Erro', 'Não foi possível excluir a devolução: ' + error.message);
         }
+        }
+      }
       ]
     );
   };
@@ -141,11 +141,51 @@ export default function DevolucaoScreen({ navigation }) {
           <Text style={styles.buttonText}>NOVA DEVOLUÇÃO</Text>
         </TouchableOpacity>
 
+        {/* Navbar de filtros */}
+        <View style={styles.filterBar}>
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              filter === 'data' && styles.filterButtonActive
+            ]}
+            onPress={() => setFilter('data')}
+          >
+            <Text style={styles.filterButtonText}>Data</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              filter === 'estoque' && styles.filterButtonActive
+            ]}
+            onPress={() => setFilter('estoque')}
+          >
+            <Text style={styles.filterButtonText}>Estoque</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              filter === 'responsavel' && styles.filterButtonActive
+            ]}
+            onPress={() => setFilter('responsavel')}
+          >
+            <Text style={styles.filterButtonText}>Responsável</Text>
+          </TouchableOpacity>
+        </View>
+        {/* Filtro de busca */}
+        <View style={styles.filterInputContainer}>
+          <TextInput
+            style={styles.filterInput}
+            placeholder={`Buscar por ${filter === 'data' ? 'data (dd/mm/aaaa)' : filter === 'estoque' ? 'estoque' : 'responsável'}`}
+            value={search}
+            onChangeText={setSearch}
+          />
+        </View>
+
         {loading ? (
           <Text style={styles.emptyText}>Carregando devoluções...</Text>
         ) : (
           <FlatList
-            data={devolucoes}
+            data={filteredDevolucoes}
             keyExtractor={item => item.id}
             renderItem={renderDevolucaoItem}
             ListEmptyComponent={

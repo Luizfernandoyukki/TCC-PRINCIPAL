@@ -1,13 +1,12 @@
 
-import { View, StyleSheet, TouchableOpacity, ImageBackground, StatusBar, Image } from 'react-native';
+import { Image, ImageBackground, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Text } from 'react-native-paper';
 
 export default function HomeScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#043b57" barStyle="light-content" />
-      
-      {/* Cabeçalho azul (mantido igual) */}
+    
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <TouchableOpacity onPress={() => navigation.navigate('TelaInicial')}>

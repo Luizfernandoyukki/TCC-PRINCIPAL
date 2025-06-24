@@ -173,11 +173,73 @@ export default function EntradasScreen({ navigation }) {
           <Text style={styles.buttonText}>NOVA ENTRADA</Text>
         </TouchableOpacity>
 
+        {/* Navbar de filtros */}
+        <View style={styles.filterBar}>
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              filter === 'data' && styles.filterButtonActive
+            ]}
+            onPress={() => setFilter('data')}
+          >
+            <Text style={styles.filterButtonText}>Data</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              filter === 'estoque' && styles.filterButtonActive
+            ]}
+            onPress={() => setFilter('estoque')}
+          >
+            <Text style={styles.filterButtonText}>Estoque</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              filter === 'responsavel' && styles.filterButtonActive
+            ]}
+            onPress={() => setFilter('responsavel')}
+          >
+            <Text style={styles.filterButtonText}>Responsável</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              filter === 'nota' && styles.filterButtonActive
+            ]}
+            onPress={() => setFilter('nota')}
+          >
+            <Text style={styles.filterButtonText}>Nota Fiscal</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Campo de busca para o filtro selecionado */}
+        <View style={styles.filterInputContainer}>
+          <TextInput
+            style={styles.filterInput}
+            placeholder={`Filtrar por ${filter === 'data' ? 'data (dd/mm/aaaa)' : filter}`}
+            value={filterValue}
+            onChangeText={setFilterValue}
+          />
+          <TouchableOpacity
+            style={styles.filterApplyButton}
+            onPress={applyFilter}
+          >
+            <Text style={styles.filterApplyButtonText}>Filtrar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.filterClearButton}
+            onPress={clearFilter}
+          >
+            <Text style={styles.filterClearButtonText}>Limpar</Text>
+          </TouchableOpacity>
+        </View>
+
         {loading ? (
           <Text style={styles.emptyText}>Carregando entradas...</Text>
         ) : (
           <FlatList
-            data={entradas}
+            data={filteredEntradas}
             keyExtractor={item => item.id}
             renderItem={renderEntradaItem}
             ListEmptyComponent={

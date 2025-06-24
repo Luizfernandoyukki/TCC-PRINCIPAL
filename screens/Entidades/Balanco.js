@@ -1,8 +1,8 @@
 import * as FileSystem from 'expo-file-system';
+import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, FlatList, Image, Modal, Platform, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import RNHTMLtoPDF from 'react-native-html-to-pdf';
 import { Button } from 'react-native-paper';
 import ViewShot from 'react-native-view-shot';
 import { databaseService } from '../../services/localDatabase';
@@ -91,20 +91,18 @@ export default function BalancoScreen({ navigation }) {
     );
   };
 
-  // Exportar PDF com capa e cada relatório em página separada
+  // Exportar PDF usando expo-print
   const exportarPDF = async (balanco) => {
     try {
       const dataGeracao = new Date().toLocaleString('pt-BR');
       let html = `
         <div style="text-align:center;">
-          <img src="${logoPath}" style="width:120px; margin-bottom:10px;" />
           <h1 style="color:#043b57;">Relatório de Estoque</h1>
           <h2>Emitido por: ${usuarioLogado.nome}</h2>
           <p>Data: ${dataGeracao}</p>
         </div>
         <div style="page-break-after: always;"></div>
         <div style="text-align:center;">
-          <img src="${logoPath}" style="width:100px; margin-bottom:10px;" />
           <h2>${balanco.nome}</h2>
           <p><b>Tipo:</b> ${balanco.tipo}</p>
           <p><b>Período:</b> ${balanco.periodo}</p>
@@ -118,53 +116,10 @@ export default function BalancoScreen({ navigation }) {
         </div>
       `;
 
-      const pdf = await RNHTMLtoPDF.convert({
-        html,
-        fileName: `relatorio_balanco_${balanco.id}_${Date.now()}`,
-        base64: false,
-      });
-
-      if (Platform.OS === 'android' || Platform.OS === 'ios') {
-        await Sharing.shareAsync(pdf.filePath);
-      } else {
-        Alert.alert('PDF gerado', `Arquivo salvo em: ${pdf.filePath}`);
-      }
+      const { uri } = await Print.printToFileAsync({ html });
+      await Sharing.shareAsync(uri);
     } catch (error) {
       Alert.alert('Erro', 'Falha ao exportar PDF');
-    }
-  };
-
-  // Exportar CSV simples
-  const exportarCSV = async (balanco) => {
-    try {
-      const csv =
-        'Nome,Data,Período,Tipo,Valor Total,Tipo Pagamento,Status,Emitido por,Criado em,Motivo\n' +
-        `"${balanco.nome}","${new Date(balanco.data).toLocaleDateString('pt-BR')}","${balanco.periodo}","${balanco.tipo}","${balanco.valor_total?.toFixed(2) || '0,00'}","${balanco.tipo_pagamento || '-'}","${balanco.status || '-'}","${balanco.usuario_id}","${new Date(balanco.criado_em).toLocaleDateString('pt-BR')}","${balanco.motivo || '-'}"\n`;
-
-      const fileUri = FileSystem.documentDirectory + `relatorio_balanco_${balanco.id}_${Date.now()}.csv`;
-      await FileSystem.writeAsStringAsync(fileUri, csv, { encoding: FileSystem.EncodingType.UTF8 });
-
-      if (Platform.OS === 'android' || Platform.OS === 'ios') {
-        await Sharing.shareAsync(fileUri);
-      } else {
-        Alert.alert('CSV gerado', `Arquivo salvo em: ${fileUri}`);
-      }
-    } catch (error) {
-      Alert.alert('Erro', 'Falha ao exportar CSV');
-    }
-  };
-
-  // Exportar PNG do relatório detalhado (modal)
-  const exportarPNG = async () => {
-    try {
-      const uri = await viewShotRef.current.capture();
-      if (Platform.OS === 'android' || Platform.OS === 'ios') {
-        await Sharing.shareAsync(uri);
-      } else {
-        Alert.alert('PNG gerado', `Arquivo salvo em: ${uri}`);
-      }
-    } catch (error) {
-      Alert.alert('Erro', 'Falha ao exportar PNG');
     }
   };
 
@@ -324,8 +279,6 @@ export default function BalancoScreen({ navigation }) {
             )}
             <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginTop: 20 }}>
               <Button mode="contained" onPress={() => exportarPDF(modalDetalhe.balanco)}>Exportar PDF</Button>
-              <Button mode="outlined" onPress={() => exportarCSV(modalDetalhe.balanco)}>Exportar CSV</Button>
-              <Button mode="outlined" onPress={exportarPNG}>Exportar PNG</Button>
               <Button onPress={() => setModalDetalhe({ visible: false, balanco: null })}>Fechar</Button>
             </View>
           </View>

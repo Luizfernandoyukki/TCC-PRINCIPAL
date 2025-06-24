@@ -171,61 +171,96 @@ export default function EntregasScreen({ navigation }) {
   );
   
 
- return (
-    <View style={styles.container}>
-      <StatusBar backgroundColor="#043b57" barStyle="light-content" />
-      
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+return (
+  <View style={styles.container}>
+    <StatusBar backgroundColor="#043b57" barStyle="light-content" />
+    
+    <View style={styles.header}>
+      <View style={styles.headerContent}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Image 
+            source={require('../../Assets/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
+        <View style={styles.headerRightActions}>
+          <TouchableOpacity 
+            onPress={() => setUseLocalData(!useLocalData)}
+            style={styles.dataSourceToggle}
+          >
+            <Text style={styles.dataSourceText}>
+              {useLocalData ? 'Usar Nuvem' : 'Usar Local'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalEXP')}>
             <Image 
-              source={require('../../Assets/logo.png')}
-              style={styles.logo}
+              source={require('../../Assets/EXP.png')} 
+              style={styles.alerta}
               resizeMode="contain"
             />
           </TouchableOpacity>
-          <View style={styles.headerRightActions}>
-            <TouchableOpacity 
-              onPress={() => setUseLocalData(!useLocalData)}
-              style={styles.dataSourceToggle}
-            >
-              <Text style={styles.dataSourceText}>
-                {useLocalData ? 'Usar Nuvem' : 'Usar Local'}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalEXP')}>
-              <Image 
-                source={require('../../Assets/EXP.png')} 
-                style={styles.alerta}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
-          </View>
         </View>
       </View>
-
-      <View style={styles.content}>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => navigation.navigate('CadastroEntrega')}
-        >
-          <Text style={styles.buttonText}>+ NOVA ENTREGA</Text>
-        </TouchableOpacity>
-
-        {loading ? (
-          <Text style={styles.emptyText}>Carregando entregas...</Text>
-        ) : (
-          <FlatList
-            data={entregas}
-            keyExtractor={item => item.id}
-            renderItem={renderEntregaItem}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>Nenhuma entrega registrada.</Text>
-            }
-            contentContainerStyle={styles.listContent}
-          />
-        )}
-      </View>
     </View>
-  );
+
+    <View style={styles.content}>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => navigation.navigate('CadastroEntrega')}
+      >
+        <Text style={styles.buttonText}>+ NOVA ENTREGA</Text>
+      </TouchableOpacity>
+
+      {/* Navbar de filtros */}
+      <View style={styles.filterNavbar}>
+        <TouchableOpacity
+          style={styles.filterButton}
+          onPress={() => {
+            // Ordenar por data de saída (mais recente primeiro)
+            const sorted = [...entregas].sort((a, b) => new Date(b.data_saida) - new Date(a.data_saida));
+            setEntregas(sorted);
+          }}
+        >
+          <Text style={styles.filterButtonText}>Data de Saída</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.filterButton}
+          onPress={() => {
+            // Ordenar por status
+            const sorted = [...entregas].sort((a, b) => (a.status > b.status ? 1 : -1));
+            setEntregas(sorted);
+          }}
+        >
+          <Text style={styles.filterButtonText}>Status</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.filterButton}
+          onPress={() => {
+            // Ordenar por cliente
+            const sorted = [...entregas].sort((a, b) => (a.cliente?.nome > b.cliente?.nome ? 1 : -1));
+            setEntregas(sorted);
+          }}
+        >
+          <Text style={styles.filterButtonText}>Cliente</Text>
+        </TouchableOpacity>
+        {/* Adicione mais filtros conforme necessário */}
+      </View>
+
+      {loading ? (
+        <Text style={styles.emptyText}>Carregando entregas...</Text>
+      ) : (
+        <FlatList
+          data={entregas}
+          keyExtractor={item => item.id}
+          renderItem={renderEntregaItem}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>Nenhuma entrega registrada.</Text>
+          }
+          contentContainerStyle={styles.listContent}
+        />
+      )}
+    </View>
+  </View>
+);
 }

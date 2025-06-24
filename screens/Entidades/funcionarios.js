@@ -276,6 +276,14 @@ export default function FuncionariosScreen({ navigation }) {
     </View>
   );
 
+  // Estado para filtro de nome
+  const [nomeFiltro, setNomeFiltro] = useState('');
+
+  // Filtra os funcionários pelo nome digitado
+  const funcionariosFiltrados = funcionarios.filter(func =>
+    func.nome.toLowerCase().includes(nomeFiltro.toLowerCase())
+  );
+
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#043b57" barStyle="light-content" />
@@ -317,11 +325,27 @@ export default function FuncionariosScreen({ navigation }) {
           <Text style={styles.buttonText}>NOVO FUNCIONÁRIO</Text>
         </TouchableOpacity>
 
+        {/* Navbar de filtro por nome */}
+        <View style={styles.navbarFiltro}>
+          <Image
+            source={require('../../Assets/search.png')}
+            style={styles.iconFiltro}
+            resizeMode="contain"
+          />
+          <TextInput
+            style={styles.inputFiltro}
+            placeholder="Filtrar por nome..."
+            placeholderTextColor="#888"
+            value={nomeFiltro}
+            onChangeText={setNomeFiltro}
+          />
+        </View>
+
         {loading ? (
           <Text style={styles.emptyText}>Carregando funcionários...</Text>
         ) : (
           <FlatList
-            data={funcionarios}
+            data={funcionariosFiltrados}
             keyExtractor={item => item.id}
             renderItem={renderFuncionarioItem}
             ListEmptyComponent={

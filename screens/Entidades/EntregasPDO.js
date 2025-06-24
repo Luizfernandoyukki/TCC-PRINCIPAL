@@ -171,7 +171,7 @@ export default function EntregasScreen({ navigation }) {
   );
   
 
- return (
+return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#043b57" barStyle="light-content" />
       
@@ -212,11 +212,102 @@ export default function EntregasScreen({ navigation }) {
           <Text style={styles.buttonText}>+ NOVA ENTREGA</Text>
         </TouchableOpacity>
 
+        {/* Navbar de filtros */}
+        <View style={styles.filterNavbar}>
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={[
+              { key: 'data_saida', label: 'Data de Saída' },
+              { key: 'status', label: 'Status' },
+              { key: 'cliente', label: 'Cliente' },
+              { key: 'veiculo', label: 'Veículo' },
+              { key: 'nota', label: 'Nota Fiscal' }
+            ]}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.filterButton,
+                  filterKey === item.key && styles.filterButtonActive
+                ]}
+                onPress={() => setFilterKey(item.key)}
+              >
+                <Text
+                  style={[
+                    styles.filterButtonText,
+                    filterKey === item.key && styles.filterButtonTextActive
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            )}
+            keyExtractor={item => item.key}
+            contentContainerStyle={styles.filterNavbarContent}
+          />
+          {/* Exemplo de campo de filtro dinâmico */}
+          {filterKey === 'data_saida' && (
+            <TouchableOpacity
+              style={styles.filterInput}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Text style={styles.filterInputText}>
+                {filterValue ? new Date(filterValue).toLocaleDateString('pt-BR') : 'Escolher data'}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {filterKey === 'status' && (
+            <TouchableOpacity
+              style={styles.filterInput}
+              onPress={() => setShowStatusPicker(true)}
+            >
+              <Text style={styles.filterInputText}>
+                {filterValue || 'Escolher status'}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {/* Adicione outros campos de filtro conforme necessário */}
+        </View>
+
         {loading ? (
           <Text style={styles.emptyText}>Carregando entregas...</Text>
         ) : (
           <FlatList
-            data={entregas}
+            data={
+              filterKey && filterValue
+                ? entregas.filter(entrega => {
+                    if (filterKey === 'data_saida') {
+                      return (
+                        new Date(entrega.data_saida).toLocaleDateString('pt-BR') ===
+                        new Date(filterValue).toLocaleDateString('pt-BR')
+                      );
+                    }
+                    if (filterKey === 'status') {
+                      return entrega.status === filterValue;
+                    }
+                    if (filterKey === 'cliente') {
+                      return (
+                        entrega.cliente?.nome
+                          ?.toLowerCase()
+                          .includes(filterValue.toLowerCase())
+                      );
+                    }
+                    if (filterKey === 'veiculo') {
+                      return (
+                        entrega.veiculo?.modelo
+                          ?.toLowerCase()
+                          .includes(filterValue.toLowerCase())
+                      );
+                    }
+                    if (filterKey === 'nota') {
+                      return filterValue === 'Com Nota'
+                        ? entrega.nota
+                        : !entrega.nota;
+                    }
+                    return true;
+                  })
+                : entregas
+            }
             keyExtractor={item => item.id}
             renderItem={renderEntregaItem}
             ListEmptyComponent={
@@ -225,7 +316,8 @@ export default function EntregasScreen({ navigation }) {
             contentContainerStyle={styles.listContent}
           />
         )}
+        {/* DatePicker e outros pickers podem ser implementados conforme necessário */}
       </View>
-    </View>
-  );
+  </View>
+);
 }

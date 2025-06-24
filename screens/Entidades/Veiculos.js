@@ -147,6 +147,18 @@ export default function VeiculosScreen({ navigation }) {
     </View>
   );
 
+  // Estados para filtro
+  const [filtroNome, setFiltroNome] = useState('');
+  const [filtroStatus, setFiltroStatus] = useState('todos');
+
+  // Função para filtrar veículos
+  const veiculosFiltrados = veiculos.filter(item => {
+    const nomeMatch = item.modelo.toLowerCase().includes(filtroNome.toLowerCase());
+    // Supondo que o status está em item.status (ajuste conforme seu modelo)
+    const statusMatch = filtroStatus === 'todos' || (item.status && item.status === filtroStatus);
+    return nomeMatch && statusMatch;
+  });
+
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#043b57" barStyle="light-content" />
@@ -188,11 +200,52 @@ export default function VeiculosScreen({ navigation }) {
           <Text style={styles.buttonText}>NOVO VEÍCULO</Text>
         </TouchableOpacity>
 
+        {/* Navbar de filtros */}
+        <View style={{ flexDirection: 'row', marginVertical: 10, alignItems: 'center', gap: 8 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 12, color: '#555' }}>Filtrar por nome:</Text>
+            <View style={{
+              borderWidth: 1,
+              borderColor: '#ccc',
+              borderRadius: 8,
+              paddingHorizontal: 8,
+              backgroundColor: '#fff'
+            }}>
+              <TextInput
+                placeholder="Digite o modelo"
+                value={filtroNome}
+                onChangeText={setFiltroNome}
+                style={{ height: 36 }}
+              />
+            </View>
+          </View>
+          <View style={{ width: 120 }}>
+            <Text style={{ fontSize: 12, color: '#555' }}>Status:</Text>
+            <View style={{
+              borderWidth: 1,
+              borderColor: '#ccc',
+              borderRadius: 8,
+              backgroundColor: '#fff'
+            }}>
+              <Picker
+                selectedValue={filtroStatus}
+                onValueChange={setFiltroStatus}
+                style={{ height: 36 }}
+              >
+                <Picker.Item label="Todos" value="todos" />
+                <Picker.Item label="Ativo" value="ativo" />
+                <Picker.Item label="Inativo" value="inativo" />
+                {/* Adicione outros status conforme necessário */}
+              </Picker>
+            </View>
+          </View>
+        </View>
+
         {loading ? (
           <Text style={styles.emptyText}>Carregando veículos...</Text>
         ) : (
           <FlatList
-            data={veiculos}
+            data={veiculosFiltrados}
             keyExtractor={item => item.id.toString()}
             renderItem={renderItem}
             ListEmptyComponent={

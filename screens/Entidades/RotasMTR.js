@@ -263,7 +263,36 @@ export default function RotasScreen({ navigation }) {
         >
           <Text style={styles.buttonText}>NOVA ROTA</Text>
         </TouchableOpacity>
-
+        <View style={{ marginVertical: 10 }}>
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: '#fff',
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: '#ccc',
+            paddingHorizontal: 10,
+            marginHorizontal: 5
+          }}>
+            <Image
+              source={require('../../Assets/search.png')}
+              style={{ width: 20, height: 20, marginRight: 8 }}
+              resizeMode="contain"
+            />
+            <TextInput
+              style={{ flex: 1, height: 40 }}
+              placeholder="Filtrar por nome da rota..."
+              value={filterText}
+              onChangeText={setFilterText}
+              placeholderTextColor="#888"
+            />
+            {filterText.length > 0 && (
+              <TouchableOpacity onPress={() => setFilterText('')}>
+                <Text style={{ color: '#2196F3', fontWeight: 'bold', marginLeft: 8 }}>Limpar</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
         {loading ? (
           <Text style={styles.emptyText}>Carregando rotas...</Text>
         ) : (

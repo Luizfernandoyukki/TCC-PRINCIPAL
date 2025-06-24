@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, FlatList, Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, Image, Text, TouchableOpacity, View } from 'react-native';
 import styles from '../../styles/EstilosdeEntidade';
 import { getAllLocal } from '../../utils/localEntityService';
 
@@ -40,7 +40,7 @@ export default function EntradasScreen({ navigation }) {
   const toggleExpand = (id) => {
     setExpandedId(expandedId === id ? null : id);
   };
-  };
+  
 
   const renderNotaFiscal = (nota) => {
     return nota ? (
@@ -120,8 +120,6 @@ export default function EntradasScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <StatusBar backgroundColor="#043b57" barStyle="light-content" />
-      
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -149,6 +147,41 @@ export default function EntradasScreen({ navigation }) {
           <Text style={styles.buttonText}>NOVA ENTRADA</Text>
         </TouchableOpacity>
 
+        {/* Navbar de filtros */}
+        <View style={styles.filterBar}>
+          <Text style={styles.filterLabel}>Filtrar por:</Text>
+          <TouchableOpacity
+            style={styles.filterButton}
+            onPress={() => {
+              // Exemplo: ordenar por data mais recente
+              const sorted = [...entradas].sort((a, b) => new Date(b.data_entrada) - new Date(a.data_entrada));
+              setEntradas(sorted);
+            }}
+          >
+            <Text style={styles.filterButtonText}>Data</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.filterButton}
+            onPress={() => {
+              // Exemplo: ordenar por quantidade
+              const sorted = [...entradas].sort((a, b) => b.quantidade - a.quantidade);
+              setEntradas(sorted);
+            }}
+          >
+            <Text style={styles.filterButtonText}>Quantidade</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.filterButton}
+            onPress={() => {
+              // Exemplo: ordenar por responsável
+              const sorted = [...entradas].sort((a, b) => (a.responsavel.nome || '').localeCompare(b.responsavel.nome || ''));
+              setEntradas(sorted);
+            }}
+          >
+            <Text style={styles.filterButtonText}>Responsável</Text>
+          </TouchableOpacity>
+        </View>
+
         {loading ? (
           <Text style={styles.emptyText}>Carregando entradas...</Text>
         ) : (
@@ -165,3 +198,4 @@ export default function EntradasScreen({ navigation }) {
       </View>
     </View>
   );
+};

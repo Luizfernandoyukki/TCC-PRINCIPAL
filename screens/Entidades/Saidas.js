@@ -213,6 +213,31 @@ export default function SaidasScreen({ navigation }) {
     </View>
   );
 
+  // Estados para filtro
+  const [filtroNome, setFiltroNome] = useState('');
+  const [filtroDataInicio, setFiltroDataInicio] = useState('');
+  const [filtroDataFim, setFiltroDataFim] = useState('');
+
+  // Função para filtrar as saídas
+  const filtrarSaidas = () => {
+    return saidas.filter(item => {
+      // Filtro por nome (estoque)
+      const nomeMatch = filtroNome.trim() === '' || (item.estoque?.nome || '').toLowerCase().includes(filtroNome.trim().toLowerCase());
+      // Filtro por data
+      let dataMatch = true;
+      if (filtroDataInicio) {
+        dataMatch = dataMatch && new Date(item.data_saida) >= new Date(filtroDataInicio);
+      }
+      if (filtroDataFim) {
+        // Considera o fim do dia
+        const dataFim = new Date(filtroDataFim);
+        dataFim.setHours(23, 59, 59, 999);
+        dataMatch = dataMatch && new Date(item.data_saida) <= dataFim;
+      }
+      return nomeMatch && dataMatch;
+    });
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#043b57" barStyle="light-content" />
@@ -254,11 +279,73 @@ export default function SaidasScreen({ navigation }) {
           <Text style={styles.buttonText}>CRIAR BAIXA</Text>
         </TouchableOpacity>
 
+        {/* Navbar de filtro */}
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          marginVertical: 10,
+          justifyContent: 'space-between',
+        }}>
+          <View style={{ flex: 1, marginRight: 5 }}>
+            <Text style={{ fontSize: 12, color: '#555' }}>Nome</Text>
+            <View style={{
+              borderWidth: 1,
+              borderColor: '#ccc',
+              borderRadius: 6,
+              paddingHorizontal: 8,
+              backgroundColor: '#fff',
+            }}>
+              <TextInput
+                placeholder="Filtrar por nome"
+                value={filtroNome}
+                onChangeText={setFiltroNome}
+                style={{ height: 36 }}
+              />
+            </View>
+          </View>
+          <View style={{ flex: 1, marginHorizontal: 5 }}>
+            <Text style={{ fontSize: 12, color: '#555' }}>Data início</Text>
+            <View style={{
+              borderWidth: 1,
+              borderColor: '#ccc',
+              borderRadius: 6,
+              paddingHorizontal: 8,
+              backgroundColor: '#fff',
+            }}>
+              <TextInput
+                placeholder="AAAA-MM-DD"
+                value={filtroDataInicio}
+                onChangeText={setFiltroDataInicio}
+                style={{ height: 36 }}
+                keyboardType="numeric"
+              />
+            </View>
+          </View>
+          <View style={{ flex: 1, marginLeft: 5 }}>
+            <Text style={{ fontSize: 12, color: '#555' }}>Data fim</Text>
+            <View style={{
+              borderWidth: 1,
+              borderColor: '#ccc',
+              borderRadius: 6,
+              paddingHorizontal: 8,
+              backgroundColor: '#fff',
+            }}>
+              <TextInput
+                placeholder="AAAA-MM-DD"
+                value={filtroDataFim}
+                onChangeText={setFiltroDataFim}
+                style={{ height: 36 }}
+                keyboardType="numeric"
+              />
+            </View>
+          </View>
+        </View>
+
         {loading ? (
           <Text style={styles.emptyText}>Carregando saídas...</Text>
         ) : (
           <FlatList
-            data={saidas}
+            data={filtrarSaidas()}
             keyExtractor={item => item.id}
             renderItem={renderItem}
             ListEmptyComponent={

@@ -1,12 +1,11 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import * as SQLite from 'expo-sqlite'; // <-- Adicione esta linha
 import React, { useEffect } from 'react';
 import { ActivityIndicator, Alert, View } from 'react-native';
 import 'react-native-url-polyfill/auto';
-
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NomesProvider } from './contexts/NomesContext';
-
 import { initDatabase } from './services/localDatabase';
 import SyncService from './services/syncService';
 // Rotas
@@ -78,10 +77,6 @@ function AppRoutes() {
     return () => clearInterval(interval);
   }, []);
 
-  // Aguarda tanto o carregamento do auth quanto a inicialização do banco local
-  if (loading || (user && !userRole) || !dbInitialized) {
-    return <LoadingScreen />;
-  }
 
   // Filtra as rotas protegidas conforme o papel do usuário
   const filteredProtectedRoutes = PROTECTED_ROUTES.filter(route => {

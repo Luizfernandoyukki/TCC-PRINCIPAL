@@ -227,6 +227,14 @@ export default function EstoqueScreen({ navigation }) {
     );
   };
 
+  // Estado para filtro de nome
+  const [filtroNome, setFiltroNome] = useState('');
+
+  // Filtra os itens pelo nome digitado
+  const itensFiltrados = itens.filter(item =>
+    item.nome.toLowerCase().includes(filtroNome.toLowerCase())
+  );
+
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#043b57" barStyle="light-content" />
@@ -268,11 +276,30 @@ export default function EstoqueScreen({ navigation }) {
           <Text style={styles.buttonText}>CADASTRAR ITEM</Text>
         </TouchableOpacity>
 
+        {/* Navbar de filtro por nome */}
+        <View style={styles.navbarFiltro}>
+          <Text style={styles.filtroLabel}>Filtrar por nome:</Text>
+          <View style={styles.filtroInputContainer}>
+            <Image
+              source={require('../../Assets/search.png')}
+              style={styles.filtroIcon}
+              resizeMode="contain"
+            />
+            <TextInput
+              style={styles.filtroInput}
+              placeholder="Digite o nome do item"
+              value={filtroNome}
+              onChangeText={setFiltroNome}
+              placeholderTextColor="#888"
+            />
+          </View>
+        </View>
+
         {loading ? (
           <Text style={styles.emptyText}>Carregando itens...</Text>
         ) : (
           <FlatList
-            data={itens}
+            data={itensFiltrados}
             keyExtractor={item => item.id.toString()}
             renderItem={renderItem}
             ListEmptyComponent={

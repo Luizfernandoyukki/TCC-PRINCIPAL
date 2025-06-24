@@ -138,7 +138,7 @@ export default function CargosFuncoesScreen({ navigation }) {
     </View>
   );
 
-  return (
+  return ( 
     <View style={styles.container}>
       <StatusBar backgroundColor="#043b57" barStyle="light-content" />
       
@@ -216,11 +216,43 @@ export default function CargosFuncoesScreen({ navigation }) {
           </Text>
         </TouchableOpacity>
 
+        {/* Navbar de filtro por nome */}
+        <View style={{ marginVertical: 10 }}>
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: '#fff',
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: '#ccc',
+            paddingHorizontal: 10,
+            height: 40
+          }}>
+            <Image
+              source={require('../../Assets/search.png')}
+              style={{ width: 20, height: 20, marginRight: 8 }}
+              resizeMode="contain"
+            />
+            <TextInput
+              style={{ flex: 1, fontSize: 16 }}
+              placeholder={`Filtrar ${dados.abaAtiva === 'cargos' ? 'cargos' : 'funções'} por nome`}
+              value={filterText}
+              onChangeText={setFilterText}
+              placeholderTextColor="#888"
+            />
+          </View>
+        </View>
+
         {loading ? (
           <Text style={styles.emptyText}>Carregando...</Text>
         ) : (
           <FlatList
-            data={dados.abaAtiva === 'cargos' ? dados.cargos : dados.funcoes}
+            data={
+              (dados.abaAtiva === 'cargos' ? dados.cargos : dados.funcoes)
+                .filter(item =>
+                  item.nome.toLowerCase().includes((filterText || '').toLowerCase())
+                )
+            }
             keyExtractor={item => item.id.toString()}
             renderItem={({ item }) => renderItem({ item, tipo: dados.abaAtiva })}
             ListEmptyComponent={

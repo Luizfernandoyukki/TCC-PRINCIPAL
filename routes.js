@@ -34,7 +34,6 @@ import SaidasScreen1 from './screens/Entidades/Saidas1';
 import VeiculosScreen from './screens/Entidades/Veiculos';
 import VeiculosScreenMTR from './screens/Entidades/VeiculosMTR';
 
-// Telas de cadastro
 import CadastroBalanco from './screens/Entidades/Cadastros/cadastroBalanco';
 import CadastroClientes from './screens/Entidades/Cadastros/cadastroClientes';
 import CadastroDevolucoes from './screens/Entidades/Cadastros/cadastroDevolucoes';
@@ -50,15 +49,14 @@ import CadastroVeiculos from './screens/Entidades/Cadastros/cadastroVeiculos';
 
 import ErrorScreen from './screens/Error';
 
-// Níveis de usuário
+
 export const USER_ROLES = {
-  ADMIN: 1,      // Sem sufixo
-  EXPEDICAO: 2,  // Sufixo 1
-  PRODUCAO: 3,   // Sufixo PDO
-  MOTORISTA: 4   // Sufixo MTR
+  ADMIN: 1,      
+  EXPEDICAO: 2,  
+  PRODUCAO: 3,  
+  MOTORISTA: 4   
 };
 
-// Rotas públicas (acessíveis sem login)
 export const PUBLIC_ROUTES = [
   { name: 'TelaInicial', component: TelaInicialScreen },
   { name: 'Login', component: LoginScreen },
@@ -66,7 +64,6 @@ export const PUBLIC_ROUTES = [
   { name: 'EsqueciMinhaSenha', component: EsqueciMinhaSenhaScreen }
 ];
 
-// Telas de cadastro (acessíveis para todos logados)
 export const CADASTRO_ROUTES = [
   { name: 'CadastroEstoque', component: CadastroEstoque },
   { name: 'CadastroClientes', component: CadastroClientes },
@@ -81,7 +78,6 @@ export const CADASTRO_ROUTES = [
   { name: 'CadastroBalanco', component: CadastroBalanco }
 ];
 
-// Todas as outras rotas protegidas
 export const PROTECTED_ROUTES = [
   { name: 'MenuCadastro', component: MenuCadastroScreen },
   { name: 'MenuPrincipalADM', component: MenuPrincipalADMScreen },
@@ -116,10 +112,9 @@ export const PROTECTED_ROUTES = [
   { name: 'Error', component: ErrorScreen }
 ];
 
-// Função para determinar o nível necessário
 export const getRequiredRole = (screenName) => {
   if (screenName.endsWith('1')) return USER_ROLES.EXPEDICAO;
   if (screenName.endsWith('PDO')) return USER_ROLES.PRODUCAO;
   if (screenName.endsWith('MTR')) return USER_ROLES.MOTORISTA;
-  return USER_ROLES.ADMIN; // Padrão para telas sem sufixo
+  return USER_ROLES.ADMIN;
 };

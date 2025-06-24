@@ -171,61 +171,116 @@ export default function EntregasScreen({ navigation }) {
   );
   
 
- return (
-    <View style={styles.container}>
-      <StatusBar backgroundColor="#043b57" barStyle="light-content" />
-      
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+return (
+  <View style={styles.container}>
+    <StatusBar backgroundColor="#043b57" barStyle="light-content" />
+    
+    <View style={styles.header}>
+      <View style={styles.headerContent}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Image 
+            source={require('../../Assets/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
+        <View style={styles.headerRightActions}>
+          <TouchableOpacity 
+            onPress={() => setUseLocalData(!useLocalData)}
+            style={styles.dataSourceToggle}
+          >
+            <Text style={styles.dataSourceText}>
+              {useLocalData ? 'Usar Nuvem' : 'Usar Local'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalADM')}>
             <Image 
-              source={require('../../Assets/logo.png')}
-              style={styles.logo}
+              source={require('../../Assets/ADM.png')} 
+              style={styles.alerta}
               resizeMode="contain"
             />
           </TouchableOpacity>
-          <View style={styles.headerRightActions}>
-            <TouchableOpacity 
-              onPress={() => setUseLocalData(!useLocalData)}
-              style={styles.dataSourceToggle}
-            >
-              <Text style={styles.dataSourceText}>
-                {useLocalData ? 'Usar Nuvem' : 'Usar Local'}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalADM')}>
-              <Image 
-                source={require('../../Assets/ADM.png')} 
-                style={styles.alerta}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
-          </View>
         </View>
       </View>
-
-      <View style={styles.content}>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => navigation.navigate('CadastroEntrega')}
-        >
-          <Text style={styles.buttonText}>+ NOVA ENTREGA</Text>
-        </TouchableOpacity>
-
-        {loading ? (
-          <Text style={styles.emptyText}>Carregando entregas...</Text>
-        ) : (
-          <FlatList
-            data={entregas}
-            keyExtractor={item => item.id}
-            renderItem={renderEntregaItem}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>Nenhuma entrega registrada.</Text>
-            }
-            contentContainerStyle={styles.listContent}
-          />
-        )}
-      </View>
     </View>
-  );
+
+    <View style={styles.content}>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => navigation.navigate('CadastroEntrega')}
+      >
+        <Text style={styles.buttonText}>+ NOVA ENTREGA</Text>
+      </TouchableOpacity>
+
+      {/* Navbar de filtros */}
+      <View style={styles.filterNavbar}>
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={[
+            { key: 'data_saida', label: 'Data de Saída' },
+            { key: 'status', label: 'Status' },
+            { key: 'cliente', label: 'Cliente' },
+            { key: 'veiculo', label: 'Veículo' },
+            { key: 'nota', label: 'Nota Fiscal' }
+          ]}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                filterKey === item.key && styles.filterButtonActive
+              ]}
+              onPress={() => setFilterKey(item.key)}
+            >
+              <Text
+                style={[
+                  styles.filterButtonText,
+                  filterKey === item.key && styles.filterButtonTextActive
+                ]}
+              >
+                {item.label}
+              </Text>
+            </TouchableOpacity>
+          )}
+          keyExtractor={item => item.key}
+          contentContainerStyle={styles.filterNavbarContent}
+        />
+        {/* Exemplo de campo de filtro dinâmico */}
+        {filterKey === 'data_saida' && (
+          <TouchableOpacity
+            style={styles.filterInput}
+            onPress={() => {
+              // Aqui você pode abrir um DatePicker ou outro filtro
+              // Exemplo: navigation.navigate('FiltroData', { onSelect: ... })
+            }}
+          >
+            <Text style={styles.filterInputText}>Filtrar por data</Text>
+          </TouchableOpacity>
+        )}
+        {/* Adicione outros campos de filtro conforme necessário */}
+      </View>
+
+      {loading ? (
+        <Text style={styles.emptyText}>Carregando entregas...</Text>
+      ) : (
+        <FlatList
+          data={
+            // Exemplo de filtro simples por data de saída (adicione lógica conforme necessário)
+            filterKey === 'data_saida' && filterValue
+              ? entregas.filter(e =>
+                  new Date(e.data_saida).toLocaleDateString('pt-BR') === filterValue
+                )
+              : entregas
+          }
+          keyExtractor={item => item.id}
+          renderItem={renderEntregaItem}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>Nenhuma entrega registrada.</Text>
+          }
+          contentContainerStyle={styles.listContent}
+        />
+      )}
+    </View>
+  </View>
+);
 }

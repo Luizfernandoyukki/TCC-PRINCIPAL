@@ -254,11 +254,55 @@ export default function SaidasScreen({ navigation }) {
           <Text style={styles.buttonText}>CRIAR BAIXA</Text>
         </TouchableOpacity>
 
+        {/* Navbar de filtros */}
+        <View style={styles.filterNavbar}>
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              filterType === 'data' && styles.filterButtonActive
+            ]}
+            onPress={() => setFilterType('data')}
+          >
+            <Text style={filterType === 'data' ? styles.filterTextActive : styles.filterText}>
+              Por Data
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              filterType === 'nome' && styles.filterButtonActive
+            ]}
+            onPress={() => setFilterType('nome')}
+          >
+            <Text style={filterType === 'nome' ? styles.filterTextActive : styles.filterText}>
+              Por Nome
+            </Text>
+          </TouchableOpacity>
+          {filterType === 'nome' && (
+            <View style={styles.filterInputContainer}>
+              <TextInput
+                style={styles.filterInput}
+                placeholder="Filtrar por nome..."
+                value={filterNome}
+                onChangeText={setFilterNome}
+              />
+            </View>
+          )}
+        </View>
+
         {loading ? (
           <Text style={styles.emptyText}>Carregando saídas...</Text>
         ) : (
           <FlatList
-            data={saidas}
+            data={
+              filterType === 'nome'
+                ? saidas.filter(item =>
+                    (item.estoque?.nome || '')
+                      .toLowerCase()
+                      .includes((filterNome || '').toLowerCase())
+                  )
+                : saidas
+            }
             keyExtractor={item => item.id}
             renderItem={renderItem}
             ListEmptyComponent={

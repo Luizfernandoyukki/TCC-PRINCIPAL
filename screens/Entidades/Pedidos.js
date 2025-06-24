@@ -303,6 +303,21 @@ export default function PedidosScreen({ navigation }) {
     </View>
   );
 
+  // Estados para filtro
+  const [orderBy, setOrderBy] = useState('desc'); // 'desc' (padrão) ou 'asc'
+  const [statusFilter, setStatusFilter] = useState('todos');
+
+  // Filtragem e ordenação dos pedidos
+  const pedidosFiltrados = pedidos
+    .filter(item => statusFilter === 'todos' ? true : item.status === statusFilter)
+    .sort((a, b) => {
+      if (orderBy === 'asc') {
+        return new Date(a.data_pedido) - new Date(b.data_pedido);
+      } else {
+        return new Date(b.data_pedido) - new Date(a.data_pedido);
+      }
+    });
+
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#043b57" barStyle="light-content" />
@@ -344,11 +359,98 @@ export default function PedidosScreen({ navigation }) {
           <Text style={styles.buttonText}>NOVO PEDIDO</Text>
         </TouchableOpacity>
 
+        {/* Navbar de filtros */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginVertical: 10 }}>
+          {/* Ordenação por data */}
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ marginRight: 8 }}>Ordenar:</Text>
+            <TouchableOpacity
+              style={{
+                padding: 6,
+                backgroundColor: orderBy === 'desc' ? '#2196F3' : '#e0e0e0',
+                borderRadius: 4,
+                marginRight: 4
+              }}
+              onPress={() => setOrderBy('desc')}
+            >
+              <Text style={{ color: orderBy === 'desc' ? '#fff' : '#000' }}>Mais novo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{
+                padding: 6,
+                backgroundColor: orderBy === 'asc' ? '#2196F3' : '#e0e0e0',
+                borderRadius: 4
+              }}
+              onPress={() => setOrderBy('asc')}
+            >
+              <Text style={{ color: orderBy === 'asc' ? '#fff' : '#000' }}>Mais velho</Text>
+            </TouchableOpacity>
+          </View>
+          {/* Filtro por status */}
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ marginRight: 8 }}>Status:</Text>
+            <TouchableOpacity
+              style={{
+                padding: 6,
+                backgroundColor: statusFilter === 'todos' ? '#2196F3' : '#e0e0e0',
+                borderRadius: 4,
+                marginRight: 4
+              }}
+              onPress={() => setStatusFilter('todos')}
+            >
+              <Text style={{ color: statusFilter === 'todos' ? '#fff' : '#000' }}>Todos</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{
+                padding: 6,
+                backgroundColor: statusFilter === 'pendente' ? '#2196F3' : '#e0e0e0',
+                borderRadius: 4,
+                marginRight: 4
+              }}
+              onPress={() => setStatusFilter('pendente')}
+            >
+              <Text style={{ color: statusFilter === 'pendente' ? '#fff' : '#000' }}>Pendente</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{
+                padding: 6,
+                backgroundColor: statusFilter === 'preparacao' ? '#2196F3' : '#e0e0e0',
+                borderRadius: 4,
+                marginRight: 4
+              }}
+              onPress={() => setStatusFilter('preparacao')}
+            >
+              <Text style={{ color: statusFilter === 'preparacao' ? '#fff' : '#000' }}>Preparação</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{
+                padding: 6,
+                backgroundColor: statusFilter === 'despachado' ? '#2196F3' : '#e0e0e0',
+                borderRadius: 4,
+                marginRight: 4
+              }}
+              onPress={() => setStatusFilter('despachado')}
+            >
+              <Text style={{ color: statusFilter === 'despachado' ? '#fff' : '#000' }}>Despachado</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{
+                padding: 6,
+                backgroundColor: statusFilter === 'cancelado' ? '#2196F3' : '#e0e0e0',
+                borderRadius: 4
+              }}
+              onPress={() => setStatusFilter('cancelado')}
+            >
+              <Text style={{ color: statusFilter === 'cancelado' ? '#fff' : '#000' }}>Cancelado</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {loading ? (
           <Text style={styles.emptyText}>Carregando pedidos...</Text>
         ) : (
           <FlatList
-            data={pedidos}
+            data={pedidosFiltrados}
             keyExtractor={item => item.id}
             renderItem={renderItem}
             ListEmptyComponent={

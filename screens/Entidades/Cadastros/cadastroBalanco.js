@@ -1,14 +1,14 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import NetInfo from '@react-native-community/netinfo';
 import * as FileSystem from 'expo-file-system';
+import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, FlatList, Image, Platform, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import RNHTMLtoPDF from 'react-native-html-to-pdf';
 import { Button } from 'react-native-paper';
 import ViewShot from 'react-native-view-shot';
 import { supabase } from '../../../contexts/supabaseClient';
-import { databaseService } from '../../../serviceslocalDatabase';
+import { databaseService } from '../../../services/localDatabase';
 
 const opcoesRelatorio = [
   { label: 'Entradas', value: 'entrada' },
@@ -182,14 +182,12 @@ export default function RelatoriosEstoqueScreen({ navigation }) {
       const item = itensEstoque.find(i => i.id === estoqueSelecionado);
       let html = `
         <div style="text-align:center;">
-          <img src="${logoPath}" style="width:120px; margin-bottom:10px;" />
           <h1 style="color:#043b57;">Relatório de Estoque</h1>
           <h2>Emitido por: ${usuarioLogado.nome}</h2>
           <p>Data: ${dataGeracao}</p>
         </div>
         <div style="page-break-after: always;"></div>
         <div style="text-align:center;">
-          <img src="${logoPath}" style="width:100px; margin-bottom:10px;" />
           <h2>Item: ${item ? item.nome : estoqueSelecionado}</h2>
           <p><b>Tipo de Relatório:</b> ${opcoesRelatorio.find(o => o.value === tipoRelatorio)?.label}</p>
           <p><b>Período:</b> ${periodo.charAt(0).toUpperCase() + periodo.slice(1)}</p>
@@ -219,17 +217,8 @@ export default function RelatoriosEstoqueScreen({ navigation }) {
         html += `</ul>`;
       }
 
-      const pdf = await RNHTMLtoPDF.convert({
-        html,
-        fileName: `relatorio_estoque_${Date.now()}`,
-        base64: false,
-      });
-
-      if (Platform.OS === 'android' || Platform.OS === 'ios') {
-        await Sharing.shareAsync(pdf.filePath);
-      } else {
-        Alert.alert('PDF gerado', `Arquivo salvo em: ${pdf.filePath}`);
-      }
+      const { uri } = await Print.printToFileAsync({ html });
+      await Sharing.shareAsync(uri);
     } catch (error) {
       Alert.alert('Erro', 'Falha ao exportar PDF');
     } finally {

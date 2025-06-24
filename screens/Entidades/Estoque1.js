@@ -268,11 +268,40 @@ export default function EstoqueScreen({ navigation }) {
           <Text style={styles.buttonText}>CADASTRAR ITEM</Text>
         </TouchableOpacity>
 
+        {/* Navbar de filtro por nome */}
+        <View style={{ marginVertical: 10 }}>
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: '#fff',
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: '#ccc',
+            paddingHorizontal: 10,
+            height: 40
+          }}>
+            <Image
+              source={require('../../Assets/search.png')}
+              style={{ width: 20, height: 20, marginRight: 8, tintColor: '#888' }}
+            />
+            <TextInput
+              style={{ flex: 1, fontSize: 16 }}
+              placeholder="Filtrar por nome..."
+              value={filterText}
+              onChangeText={setFilterText}
+              placeholderTextColor="#888"
+              autoCapitalize="none"
+            />
+          </View>
+        </View>
+
         {loading ? (
           <Text style={styles.emptyText}>Carregando itens...</Text>
         ) : (
           <FlatList
-            data={itens}
+            data={itens.filter(item =>
+              item.nome.toLowerCase().includes((filterText || '').toLowerCase())
+            )}
             keyExtractor={item => item.id.toString()}
             renderItem={renderItem}
             ListEmptyComponent={

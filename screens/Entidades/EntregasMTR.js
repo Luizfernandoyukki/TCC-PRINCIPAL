@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, FlatList, Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, Text, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../contexts/supabaseClient';
 import { databaseService } from '../../services/localDatabase'; // Adicionado para operações locais
 import styles from '../../styles/EstilosdeEntidade';
@@ -171,61 +171,126 @@ export default function EntregasScreen({ navigation }) {
   );
   
 
- return (
-    <View style={styles.container}>
-      <StatusBar backgroundColor="#043b57" barStyle="light-content" />
-      
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Image 
-              source={require('../../Assets/logo.png')}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
-          <View style={styles.headerRightActions}>
-            <TouchableOpacity 
-              onPress={() => setUseLocalData(!useLocalData)}
-              style={styles.dataSourceToggle}
-            >
-              <Text style={styles.dataSourceText}>
-                {useLocalData ? 'Usar Nuvem' : 'Usar Local'}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalMTR')}>
-              <Image 
-                source={require('../../Assets/MTR.png')} 
-                style={styles.alerta}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
+{/* Botão de nova entrega */}
+<TouchableOpacity
+  style={styles.button}
+  onPress={() => navigation.navigate('CadastroEntrega')}
+>
+  <Text style={styles.buttonText}>+ NOVA ENTREGA</Text>
+</TouchableOpacity>
 
-      <View style={styles.content}>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => navigation.navigate('CadastroEntrega')}
-        >
-          <Text style={styles.buttonText}>+ NOVA ENTREGA</Text>
-        </TouchableOpacity>
-
-        {loading ? (
-          <Text style={styles.emptyText}>Carregando entregas...</Text>
-        ) : (
-          <FlatList
-            data={entregas}
-            keyExtractor={item => item.id}
-            renderItem={renderEntregaItem}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>Nenhuma entrega registrada.</Text>
-            }
-            contentContainerStyle={styles.listContent}
-          />
-        )}
-      </View>
+{/* Navbar de filtros */}
+<View style={styles.filterNavbar}>
+  <FlatList
+    horizontal
+    showsHorizontalScrollIndicator={false}
+    data={[
+  { key: 'data_saida', label: 'Data de Saída' },
+  { key: 'status', label: 'Status' },
+  { key: 'cliente', label: 'Cliente' },
+  { key: 'veiculo', label: 'Veículo' },
+  // Adicione mais filtros conforme necessário
+    ]}
+    renderItem={({ item }) => (
+  <TouchableOpacity
+    style={[
+      styles.filterButton,
+      filterKey === item.key && styles.filterButtonActive
+    ]}
+    onPress={() => setFilterKey(item.key)}
+  >
+    <Text
+      style={[
+    styles.filterButtonText,
+    filterKey === item.key && styles.filterButtonTextActive
+      ]}
+    >
+      {item.label}
+    </Text>
+  </TouchableOpacity>
+    )}
+    keyExtractor={item => item.key}
+    contentContainerStyle={styles.filterNavbarContent}
+  />
+  {/* Exemplo de campo de busca para o filtro selecionado */}
+  {filterKey === 'data_saida' && (
+    <TouchableOpacity
+  style={styles.filterInput}
+  onPress={() => setShowDatePicker(true)}
+    >
+  <Text style={styles.filterInputText}>
+    {filterValue ? new Date(filterValue).toLocaleDateString('pt-BR') : 'Escolher data'}
+  </Text>
+    </TouchableOpacity>
+  )}
+  {filterKey !== 'data_saida' && (
+    <View style={styles.filterInput}>
+  <TextInput
+    style={styles.filterInputText}
+    placeholder={`Filtrar por ${filterKey === 'status' ? 'status' : filterKey}`}
+    value={filterValue}
+    onChangeText={setFilterValue}
+  />
     </View>
-  );
+  )}
+  {/* DatePicker pode ser implementado conforme biblioteca usada */}
+  {showDatePicker && (
+    // Substitua pelo seu DatePicker preferido
+    <DateTimePicker
+  value={filterValue ? new Date(filterValue) : new Date()}
+  mode="date"
+  display="default"
+  onChange={(event, date) => {
+    setShowDatePicker(false);
+    if (date) setFilterValue(date.toISOString());
+  }}
+    />
+  )}
+  <TouchableOpacity
+    style={styles.clearFilterButton}
+    onPress={() => {
+  setFilterKey(null);
+  setFilterValue('');
+    }}
+  >
+    <Text style={styles.clearFilterButtonText}>Limpar Filtros</Text>
+  </TouchableOpacity>
+</View>
+
+{/* Lista de entregas */}
+{loading ? (
+  <Text style={styles.emptyText}>Carregando entregas...</Text>
+) : (
+  <FlatList
+    data={
+  filterKey && filterValue
+    ? entregas.filter(entrega => {
+    if (filterKey === 'data_saida') {
+      return (
+        new Date(entrega.data_saida).toLocaleDateString('pt-BR') ===
+        new Date(filterValue).toLocaleDateString('pt-BR')
+      );
+    }
+    if (filterKey === 'status') {
+      return entrega.status?.toLowerCase().includes(filterValue.toLowerCase());
+    }
+    if (filterKey === 'cliente') {
+      return entrega.cliente?.nome?.toLowerCase().includes(filterValue.toLowerCase());
+    }
+    if (filterKey === 'veiculo') {
+      return entrega.veiculo?.modelo?.toLowerCase().includes(filterValue.toLowerCase()) ||
+        entrega.veiculo?.placa?.toLowerCase().includes(filterValue.toLowerCase());
+    }
+    return true;
+      })
+    : entregas
+    }
+    keyExtractor={item => item.id}
+    renderItem={renderEntregaItem}
+    ListEmptyComponent={
+  <Text style={styles.emptyText}>Nenhuma entrega registrada.</Text>
+    }
+    contentContainerStyle={styles.listContent}
+  />
+)}
 }

@@ -114,6 +114,20 @@ export default function VeiculosScreen({ navigation }) {
     </View>
   );
 
+  // Estados para filtro
+  const [filtroNome, setFiltroNome] = useState('');
+  const [filtroStatus, setFiltroStatus] = useState('todos');
+
+  // Função para filtrar veículos
+  const veiculosFiltrados = veiculos.filter(item => {
+    const nomeMatch = item.modelo?.toLowerCase().includes(filtroNome.toLowerCase());
+    const statusMatch =
+      filtroStatus === 'todos' ||
+      (filtroStatus === 'ativo' && item.status === 'ativo') ||
+      (filtroStatus === 'inativo' && item.status === 'inativo');
+    return nomeMatch && statusMatch;
+  });
+
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#043b57" barStyle="light-content" />
@@ -147,6 +161,60 @@ export default function VeiculosScreen({ navigation }) {
         </View>
       </View>
 
+      {/* Navbar de filtro */}
+      <View style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        backgroundColor: '#f5f5f5',
+        borderBottomWidth: 1,
+        borderBottomColor: '#ddd'
+      }}>
+        <View style={{ flex: 1, marginRight: 8 }}>
+          <Text style={{ fontSize: 12, color: '#555' }}>Filtrar por nome:</Text>
+          <View style={{
+            backgroundColor: '#fff',
+            borderRadius: 6,
+            borderWidth: 1,
+            borderColor: '#ccc',
+            paddingHorizontal: 8,
+            height: 36,
+            justifyContent: 'center'
+          }}>
+            <TextInput
+              placeholder="Digite o modelo"
+              value={filtroNome}
+              onChangeText={setFiltroNome}
+              style={{ fontSize: 14 }}
+              autoCorrect={false}
+              autoCapitalize="none"
+            />
+          </View>
+        </View>
+        <View style={{ width: 120 }}>
+          <Text style={{ fontSize: 12, color: '#555' }}>Status:</Text>
+          <View style={{
+            backgroundColor: '#fff',
+            borderRadius: 6,
+            borderWidth: 1,
+            borderColor: '#ccc',
+            height: 36,
+            justifyContent: 'center'
+          }}>
+            <Picker
+              selectedValue={filtroStatus}
+              onValueChange={setFiltroStatus}
+              style={{ height: 36, width: '100%' }}
+            >
+              <Picker.Item label="Todos" value="todos" />
+              <Picker.Item label="Ativo" value="ativo" />
+              <Picker.Item label="Inativo" value="inativo" />
+            </Picker>
+          </View>
+        </View>
+      </View>
+
       <View style={styles.content}>
         <TouchableOpacity
           style={styles.button}
@@ -159,7 +227,7 @@ export default function VeiculosScreen({ navigation }) {
           <Text style={styles.emptyText}>Carregando veículos...</Text>
         ) : (
           <FlatList
-            data={veiculos}
+            data={veiculosFiltrados}
             keyExtractor={item => item.id.toString()}
             renderItem={renderItem}
             ListEmptyComponent={

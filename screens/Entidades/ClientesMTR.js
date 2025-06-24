@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, FlatList, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import styles from '../../styles/EstilosdeEntidade';
 import { getAllLocal } from '../../utils/localEntityService';
 
@@ -8,9 +8,28 @@ export default function ClientesScreen({ navigation }) {
   const [expandedId, setExpandedId] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Adicione estes estados:
+  const [filterText, setFilterText] = useState('');
+  const [filteredClientes, setFilteredClientes] = useState([]);
+
   useEffect(() => {
     fetchClientes();
   }, []);
+
+  useEffect(() => {
+    // Atualiza a lista filtrada sempre que filterText ou clientes mudar
+    if (!filterText) {
+      setFilteredClientes(clientes);
+    } else {
+      setFilteredClientes(
+        clientes.filter(c =>
+          (c.nome || '').toLowerCase().includes(filterText.toLowerCase()) ||
+          (c.cpf || '').includes(filterText) ||
+          (c.cnpj || '').includes(filterText)
+        )
+      );
+    }
+  }, [filterText, clientes]);
 
   const fetchClientes = async () => {
     setLoading(true);
@@ -36,6 +55,14 @@ export default function ClientesScreen({ navigation }) {
   const toggleExpand = (id) => {
     setExpandedId(expandedId === id ? null : id);
   };
+
+  // Funções para os botões de filtro
+  const handleFilter = () => {
+    // O filtro já é aplicado automaticamente pelo useEffect acima
+  };
+
+  const handleClearFilter = () => {
+    setFilterText('');
   };
 
   const renderClienteItem = ({ item }) => (
@@ -103,38 +130,44 @@ export default function ClientesScreen({ navigation }) {
     </View>
   );
 
-  {/* Navbar de Filtro */}
-  <View style={styles.filterBar}>
-    <TextInput
-      style={styles.filterInput}
-      placeholder="Filtrar por nome, CPF, CNPJ..."
-      value={filterText}
-      onChangeText={setFilterText}
-    />
-    <TouchableOpacity
-      style={styles.filterButton}
-      onPress={handleFilter}
-    >
-      <Text style={styles.filterButtonText}>Filtrar</Text>
-    </TouchableOpacity>
-    <TouchableOpacity
-      style={styles.clearFilterButton}
-      onPress={handleClearFilter}
-    >
-      <Text style={styles.clearFilterButtonText}>Limpar</Text>
-    </TouchableOpacity>
-  </View>
+  // Render UI
+  return (
+    <>
+      {/* Navbar de Filtro */}
+      <View style={styles.filterBar}>
+        <TextInput
+          style={styles.filterInput}
+          placeholder="Filtrar por nome, CPF, CNPJ..."
+          value={filterText}
+          onChangeText={setFilterText}
+        />
+        <TouchableOpacity
+          style={styles.filterButton}
+          onPress={handleFilter}
+        >
+          <Text style={styles.filterButtonText}>Filtrar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.clearFilterButton}
+          onPress={handleClearFilter}
+        >
+          <Text style={styles.clearFilterButtonText}>Limpar</Text>
+        </TouchableOpacity>
+      </View>
 
-  {loading ? (
-    <Text style={styles.emptyText}>Carregando clientes...</Text>
-  ) : (
-    <FlatList
-      data={filteredClientes}
-      keyExtractor={item => item.id.toString()}
-      renderItem={renderClienteItem}
-      ListEmptyComponent={
-    <Text style={styles.emptyText}>Nenhum cliente registrado.</Text>
-      }
-      contentContainerStyle={styles.listContent}
-    />
-  )}
+      {loading ? (
+        <Text style={styles.emptyText}>Carregando clientes...</Text>
+      ) : (
+        <FlatList
+          data={filteredClientes}
+          keyExtractor={item => item.id.toString()}
+          renderItem={renderClienteItem}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>Nenhum cliente registrado.</Text>
+          }
+          contentContainerStyle={styles.listContent}
+        />
+      )}
+    </>
+  );
+}

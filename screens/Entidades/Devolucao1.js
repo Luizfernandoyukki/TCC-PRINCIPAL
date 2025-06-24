@@ -140,11 +140,67 @@ export default function DevolucaoScreen({ navigation }) {
           <Text style={styles.buttonText}>NOVA DEVOLUÇÃO</Text>
         </TouchableOpacity>
 
+        {/* Navbar de filtros */}
+        <View style={styles.filterBar}>
+          <Text style={styles.filterLabel}>Filtrar por:</Text>
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              filterType === 'data' && styles.filterButtonActive
+            ]}
+            onPress={() => setFilterType('data')}
+          >
+            <Text style={styles.filterButtonText}>Data</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              filterType === 'estoque' && styles.filterButtonActive
+            ]}
+            onPress={() => setFilterType('estoque')}
+          >
+            <Text style={styles.filterButtonText}>Estoque</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              filterType === 'responsavel' && styles.filterButtonActive
+            ]}
+            onPress={() => setFilterType('responsavel')}
+          >
+            <Text style={styles.filterButtonText}>Responsável</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Campo de busca para o filtro selecionado */}
+        {filterType !== null && (
+          <View style={styles.filterInputContainer}>
+            <TextInput
+              style={styles.filterInput}
+              placeholder={
+                filterType === 'data'
+                  ? 'Digite a data (dd/mm/aaaa)'
+                  : filterType === 'estoque'
+                  ? 'Nome do item'
+                  : 'Nome do responsável'
+              }
+              value={filterValue}
+              onChangeText={setFilterValue}
+            />
+            <TouchableOpacity
+              style={styles.clearFilterButton}
+              onPress={() => setFilterValue('')}
+            >
+              <Text style={styles.clearFilterButtonText}>Limpar</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {loading ? (
           <Text style={styles.emptyText}>Carregando devoluções...</Text>
         ) : (
           <FlatList
-            data={devolucoes}
+            data={filteredDevolucoes}
             keyExtractor={item => item.id}
             renderItem={renderDevolucaoItem}
             ListEmptyComponent={
