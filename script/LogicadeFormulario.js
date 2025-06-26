@@ -1,9 +1,11 @@
+import bcrypt from 'bcryptjs';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { supabase } from '../contexts/supabaseClient';
 import { maskCep, maskCpf, maskDate, maskPhone } from '../utils/masks';
+
 
 const initialFormData = {
   nome: '',
@@ -40,9 +42,10 @@ const initialFormData = {
   foto: null
 };
 
-export default function useCadastroForm(navigation) {
+export default async function useCadastroForm(navigation) {
   const [formData, setFormData] = useState(initialFormData);
   const [errors, setErrors] = useState({});
+  const senhaHash = await bcrypt.hash(formData.senha, 10);
   const [loading, setLoading] = useState(false);
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [datePickerField, setDatePickerField] = useState('');
@@ -464,6 +467,7 @@ export default function useCadastroForm(navigation) {
         cpf: formData.CPF.replace(/\D/g, ''),
         ctps: formData.ctps,
         rg: formData.rg,
+        senha: senhaHash,
         data_admissao: formData.dataAdmissao,
         carga_horaria: (safeParseInt(formData.cargaHoraria) >= 1 && safeParseInt(formData.cargaHoraria) <= 10)
           ? safeParseInt(formData.cargaHoraria)

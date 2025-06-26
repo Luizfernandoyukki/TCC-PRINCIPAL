@@ -1,5 +1,5 @@
 
-import { Image, ImageBackground, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, ImageBackground, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Text } from 'react-native-paper';
 
 export default function HomeScreen({ navigation }) {
@@ -16,7 +16,15 @@ export default function HomeScreen({ navigation }) {
               resizeMode="contain"
             />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('Error')}>
+          <TouchableOpacity  onPress={() => {
+               Alert.alert(
+              'Botão Inoperante',
+              'Botão disponivel apos acesso ao sistema.',
+              [
+                { text: 'Cancelar', style: 'cancel' },
+                { text: 'OK', onPress: () => console.log('Usuário confirmou') }
+              ]
+            );}}>
             <Image 
               source={require('../Assets/alerta.png')} 
               style={styles.alerta}

@@ -1,16 +1,15 @@
 import { useState } from 'react';
-import { Alert, Image, ImageBackground, ScrollView, StatusBar, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
-import { Text } from 'react-native-paper';
-import { PasswordService } from '../script/PasswordService';
+import { Alert, Image, ImageBackground, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { PasswordService } from '../script/PasswordRecoveryService';
 
-export default function ForgotPasswordScreen({ navigation }) {
+export default function EsqueciMinhaSenhaScreen({ navigation }) {
   const [nomeCompleto, setNomeCompleto] = useState('');
   const [cpf, setCpf] = useState('');
   const [dataNascimento, setDataNascimento] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
   const [token, setToken] = useState('');
-  const [step, setStep] = useState(1); // 1 = verificação, 2 = nova senha
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
   const handleRequestReset = async () => {
@@ -63,7 +62,15 @@ export default function ForgotPasswordScreen({ navigation }) {
               resizeMode="contain"
             />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('Error')}>
+          <TouchableOpacity onPress={() => {
+               Alert.alert(
+              'Botão Inoperante',
+              'Botão disponivel apos acesso ao sistema.',
+              [
+                { text: 'Cancelar', style: 'cancel' },
+                { text: 'OK', onPress: () => console.log('Usuário confirmou') }
+              ]
+            );}}>
             <Image 
               source={require('../Assets/alerta.png')} 
               style={styles.alerta}

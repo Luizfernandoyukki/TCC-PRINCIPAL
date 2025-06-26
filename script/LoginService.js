@@ -1,65 +1,68 @@
-// scripts/LoginService.js
+import bcrypt from 'bcryptjs';
 import { supabase } from '../contexts/supabaseClient';
 import { databaseService } from '../services/localDatabase';
 
 export const LoginService = {
-  async handleLogin(nome, senha, navigation) {
+  async handleLogin(email, senha, navigation) {
     try {
-      // 1. Verificar conexão
       const isOnline = await checkConnection();
-      
+
       if (isOnline) {
-        // 2. Tentar login online
-        const onlineResult = await this.onlineLogin(nome, senha, navigation);
+        const onlineResult = await this.onlineLogin(email, senha, navigation);
         if (onlineResult.success) return onlineResult;
       }
-      
-      // 3. Se offline ou falha online, tentar login offline
-      return await this.offlineLogin(nome, senha, navigation);
-      
+
+      return await this.offlineLogin(email, senha, navigation);
     } catch (error) {
       console.error('Login error:', error);
-      return { success: false, error: error.message };
+      throw new Error(error.message || 'Erro ao fazer login.');
     }
   },
 
-  async onlineLogin(nome, senha, navigation) {
-    // Implementação existente do useLogin
-    const { handleLogin } = useLogin(navigation);
-    await handleLogin(nome, senha);
+  async onlineLogin(email, senha, navigation) {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password: senha
+    });
+
+    if (error || !data?.user) {
+      throw new Error('Email ou senha incorretos.');
+    }
+
+    const userId = data.user.id;
+
+    const { data: funcionario, error: funcionarioError } = await supabase
+      .from('funcionario')
+      .select('hierarquia_id')
+      .eq('id', userId)
+      .single();
+
+    if (funcionarioError || !funcionario) {
+      throw new Error('Funcionário não encontrado.');
+    }
+
+    this.redirectByHierarchy(navigation, funcionario.hierarquia_id);
     return { success: true };
   },
 
-  async offlineLogin(nome, senha, navigation) {
-    // 1. Buscar no banco local
+  async offlineLogin(email, senhaDigitada, navigation) {
     const funcionarios = await databaseService.select(
-      'funcionario',
-      'nome LIKE ?',
-      [`%${nome.trim()}%`]
+      'email e JOIN funcionario f ON e.funcionario_id = f.id',
+      'e.email = ? AND e.tipo = ?',
+      [email, 'principal']
     );
 
-    if (!funcionarios || funcionarios.length === 0) {
-      throw new Error('Usuário não encontrado offline. Conecte-se para sincronizar dados.');
-    }
-
-    if (funcionarios.length > 1) {
-      throw new Error('Múltiplos usuários encontrados. Seja mais específico.');
+    if (!funcionarios.length) {
+      throw new Error('Usuário não encontrado offline.');
     }
 
     const funcionario = funcionarios[0];
+    const senhaCorreta = await bcrypt.compare(senhaDigitada, funcionario.senha);
 
-    // 2. Verificar senha (simplificado para demo - em produção usar hash seguro)
-    const emails = await databaseService.select(
-      'email',
-      'funcionario_id = ? AND tipo = ?',
-      [funcionario.id, 'principal']
-    );
-
-    if (!emails.length) {
-      throw new Error('E-mail não cadastrado localmente.');
+    if (!senhaCorreta) {
+      throw new Error('Senha incorreta (offline).');
     }
 
-    // 3. Redirecionar conforme hierarquia
     const hierarquia = await databaseService.select(
       'hierarquia',
       'id = ?',
@@ -71,12 +74,11 @@ export const LoginService = {
     }
 
     this.redirectByHierarchy(navigation, hierarquia[0].nivel);
-    
     return { success: true, offline: true };
   },
 
   redirectByHierarchy(navigation, nivel) {
-    switch(nivel) {
+    switch (nivel) {
       case 1:
         navigation.reset({ index: 0, routes: [{ name: 'MenuPrincipalADM' }] });
         break;
@@ -95,12 +97,11 @@ export const LoginService = {
 
 async function checkConnection() {
   try {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('dummy_table')
       .select('*')
       .limit(1);
-      
-    return !error || error.code === '42P01'; // Considera online mesmo se tabela não existir
+    return !error || error.code === '42P01';
   } catch {
     return false;
   }

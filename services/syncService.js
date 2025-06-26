@@ -2,7 +2,6 @@ import { supabase } from '../contexts/supabaseClient';
 import { databaseService, initDatabase } from './localDatabase';
 
 const SyncService = {
-  // Função para verificar conexão com Supabase
   async checkSupabaseConnection() {
     try {
       const { error } = await supabase
@@ -10,26 +9,22 @@ const SyncService = {
         .select('*')
         .limit(1);
         
-      return !error; // Retorna true se não houver erro
+      return !error; 
     } catch {
       return false;
     }
   },
 
-  // Sincronização básica (download from Supabase) com verificação de conexão
   async syncTable(tableName, columns = '*', filter = '') {
     try {
-      // 1. Verificar se está online
       const isOnline = await this.checkSupabaseConnection();
       if (!isOnline) {
         console.log(`Modo offline - não sincronizando tabela ${tableName}`);
         return { success: false, offline: true };
       }
       
-      // 2. Obter data da última sincronização
       const lastSync = await databaseService.getLastSync(tableName);
       
-      // 3. Buscar dados atualizados do Supabase
       let query = supabase
         .from(tableName)
         .select(columns);

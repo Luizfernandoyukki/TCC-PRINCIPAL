@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   ScrollView,
   StatusBar,
@@ -128,7 +129,15 @@ export default function CadastroScreen({ navigation }) {
                 resizeMode="contain"
               />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate('Error')}>
+            <TouchableOpacity  onPress={() => {
+               Alert.alert(
+              'Botão Inoperante',
+              'Botão disponivel apos acesso ao sistema.',
+              [
+                { text: 'Cancelar', style: 'cancel' },
+                { text: 'OK', onPress: () => console.log('Usuário confirmou') }
+              ]
+            );}}>
               <Image 
                 source={require('../Assets/alerta.png')} 
                 style={headerStyles.alerta}

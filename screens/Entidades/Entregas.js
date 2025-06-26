@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, FlatList, Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../contexts/supabaseClient';
-import { databaseService } from '../../services/localDatabase'; // Adicionado para operações locais
+import { databaseService } from '../../services/localDatabase';
 import styles from '../../styles/EstilosdeEntidade';
 
 export default function EntregasScreen({ navigation }) {
