@@ -284,7 +284,8 @@ if (!tableCheck || tableCheck.length === 0) {
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
         last_sync TEXT,
         nota INTEGER NOT NULL DEFAULT 0 CHECK (nota IN (0, 1)),
-        tipo_pagamento TEXT DEFAULT 'dinheiro' CHECK (tipo_pagamento IN ('dinheiro', 'boleto', 'cheque', 'vale', 'pix', 'cartao')),
+        tipo_pagamento TEXT DEFAULT 'dinheiro' 
+        CHECK (tipo_pagamento IN ('dinheiro', 'boleto', 'cheque', 'vale', 'pix', 'cartao')),
         valor_unitario REAL,
         valor_total REAL,
         FOREIGN KEY (criado_por) REFERENCES funcionario(id),

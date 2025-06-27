@@ -1,13 +1,14 @@
 import CadastroUserScreen from './screens/cadastroUser';
+import ErrorScreen from './screens/Error';
 import EsqueciMinhaSenhaScreen from './screens/esqueciMinhaSenha';
 import LoginScreen from './screens/Login';
-import TelaInicialScreen from './screens/TelaInicial';
 
 import MenuCadastroScreen from './screens/menuCadastro1';
 import MenuPrincipalADMScreen from './screens/menuPrincipalADM';
 import MenuPrincipalEXPScreen from './screens/menuPrincipalEXP';
 import MenuPrincipalMTRScreen from './screens/menuPrincipalMTR';
 import MenuPrincipalPDOScreen from './screens/menuPrincipalPDO';
+import TelaInicialScreen from './screens/TelaInicial';
 
 import BalancoScreen from './screens/Entidades/Balanco';
 import ClientesScreen from './screens/Entidades/Clientes';
@@ -47,7 +48,6 @@ import CadastroSaida from './screens/Entidades/Cadastros/cadastroSaidas';
 import CadastroVeiculos from './screens/Entidades/Cadastros/cadastroVeiculos';
 
 
-import ErrorScreen from './screens/Error';
 
 
 export const USER_ROLES = {
@@ -84,7 +84,8 @@ export const PROTECTED_ROUTES = [
   { name: 'MenuPrincipalEXP', component: MenuPrincipalEXPScreen },
   { name: 'MenuPrincipalPDO', component: MenuPrincipalPDOScreen },
   { name: 'MenuPrincipalMTR', component: MenuPrincipalMTRScreen },
-  
+  { name: 'Error', component: ErrorScreen },
+
   { name: 'Estoque', component: EstoqueScreen },
   { name: 'Estoque1', component: EstoqueScreen1 },
   { name: 'EstoquePDO', component: EstoqueScreenPDO },
@@ -109,7 +110,6 @@ export const PROTECTED_ROUTES = [
   { name: 'Entradas1', component: EntradasScreen1 },
   { name: 'Devolucao', component: DevolucaoScreen },
   { name: 'Devolucao1', component: DevolucaoScreen1 },
-  { name: 'Error', component: ErrorScreen }
 ];
 
 export const getRequiredRole = (screenName) => {

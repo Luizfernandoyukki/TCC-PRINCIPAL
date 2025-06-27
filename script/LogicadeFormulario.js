@@ -1,11 +1,9 @@
-import bcrypt from 'bcryptjs';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { supabase } from '../contexts/supabaseClient';
 import { maskCep, maskCpf, maskDate, maskPhone } from '../utils/masks';
-
 
 const initialFormData = {
   nome: '',
@@ -18,8 +16,7 @@ const initialFormData = {
   cargaHoraria: '1',    // valor padrão válido
   nDependentes: '0',
   hierarquia_id: 1,     // valor padrão válido
-  funcao_id: 1,         // valor padrão válido
-  cargo_id: 1,          // valor padrão válido
+  funcao_id: 1,         // valor padrão válido         // valor padrão válido
   numeroFicha: '',
   numeroAparelho: '',
   cep: '',
@@ -42,10 +39,9 @@ const initialFormData = {
   foto: null
 };
 
-export default async function useCadastroForm(navigation) {
+export default function useCadastroForm(navigation) {
   const [formData, setFormData] = useState(initialFormData);
   const [errors, setErrors] = useState({});
-  const senhaHash = await bcrypt.hash(formData.senha, 10);
   const [loading, setLoading] = useState(false);
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [datePickerField, setDatePickerField] = useState('');
@@ -58,7 +54,6 @@ export default async function useCadastroForm(navigation) {
     ],
     hierarquias: [],
     funcoes: [],
-    cargos: [],
     superiores: []
   });
 
@@ -68,12 +63,10 @@ export default async function useCadastroForm(navigation) {
         const [
           { data: hierarquias, error: hierarquiasError },
           { data: funcoes, error: funcoesError },
-          { data: cargos, error: cargosError },
           { data: superiores, error: superioresError }
         ] = await Promise.all([
           supabase.from('hierarquia').select('*').order('nivel'),
           supabase.from('funcao').select('*'),
-          supabase.from('cargo').select('*'),
           supabase.from('funcionario')
             .select('id, nome')
             .or('is_superior.eq.true,is_admin.eq.true')
@@ -82,14 +75,12 @@ export default async function useCadastroForm(navigation) {
 
         if (hierarquiasError) throw hierarquiasError;
         if (funcoesError) throw funcoesError;
-        if (cargosError) throw cargosError;
         if (superioresError) throw superioresError;
 
         setOpcoes(prev => ({
           ...prev,
           hierarquias: hierarquias || [],
           funcoes: funcoes || [],
-          cargos: cargos || [],
           superiores: superiores || []
         }));
       } catch (error) {
@@ -131,7 +122,6 @@ export default async function useCadastroForm(navigation) {
       superior_id: null,
       hierarquia_id: isAdmin ? 1 : prev.hierarquia_id,
       funcao_id: isAdmin ? 1 : prev.funcao_id,
-      cargo_id: isAdmin ? 1 : prev.cargo_id
     }));
     setShowSuperiorFields(!isAdmin);
   };
@@ -150,7 +140,7 @@ export default async function useCadastroForm(navigation) {
 
   const handleChange = (field, value) => {
     const numericFields = [
-      'genero_id', 'hierarquia_id', 'funcao_id', 'cargo_id',
+      'genero_id', 'hierarquia_id', 'funcao_id',
       'cargaHoraria', 'nDependentes'
     ];
 
@@ -281,7 +271,7 @@ export default async function useCadastroForm(navigation) {
 
     // Só exige campos profissionais se NÃO for admin
     if (!formData.is_admin) {
-      requiredFields.push('hierarquia_id', 'funcao_id', 'cargo_id');
+      requiredFields.push('hierarquia_id', 'funcao_id');
       if (!formData.superior_id) {
         newErrors.superior_id = 'Selecione um superior hierárquico';
         isValid = false;
@@ -304,7 +294,6 @@ export default async function useCadastroForm(navigation) {
     if (!formData.is_admin) {
       numericFields.hierarquia_id = 'Hierarquia';
       numericFields.funcao_id = 'Função';
-      numericFields.cargo_id = 'Cargo';
     }
 
     Object.entries(numericFields).forEach(([field, name]) => {
@@ -356,7 +345,7 @@ export default async function useCadastroForm(navigation) {
       Alert.alert('Erro', 'Preencha todos os campos obrigatórios corretamente');
       return;
     }
-
+    const { signUp } = useAuth();
     try {
       setLoading(true);
       console.log('--- INICIANDO CADASTRO ---');
@@ -364,7 +353,8 @@ export default async function useCadastroForm(navigation) {
       console.log('opcoes:', JSON.stringify(opcoes));
 
       // 1. Criar usuário no Auth
-      console.log('Tentando criar usuário no Auth...');
+      console.log('a função abriu');
+       console.log('Tentando criar usuário no Auth...');
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email1,
         password: formData.senha,
@@ -375,6 +365,8 @@ export default async function useCadastroForm(navigation) {
           }
         }
       });
+      
+      console.log('Dados do Auth:', { email: formData.email1, password: formData.senha });
       console.log('Resultado Auth:', { authData, authError });
 
       if (authError) {
@@ -387,6 +379,7 @@ export default async function useCadastroForm(navigation) {
 
       const userId = authData.user.id;
       console.log('Usuário criado com id:', userId);
+
 
       // Verificar se já existe funcionário com este usuário
       const { data: existingFuncionario } = await supabase
@@ -423,8 +416,7 @@ export default async function useCadastroForm(navigation) {
       // 3. IDs de referência
       const hierarquiaId = getFirstValidId(opcoes.hierarquias);
       const funcaoId = getFirstValidId(opcoes.funcoes);
-      const cargoId = getFirstValidId(opcoes.cargos);
-      console.log('IDs selecionados:', { hierarquiaId, funcaoId, cargoId });
+      console.log('IDs selecionados:', { hierarquiaId, funcaoId});
 
       // 4. Cadastrar endereço
       console.log('Tentando cadastrar endereço...');
@@ -482,9 +474,6 @@ export default async function useCadastroForm(navigation) {
           : 1,
         funcao_id: (safeParseInt(formData.funcao_id) >= 1 && safeParseInt(formData.funcao_id) <= 10)
           ? safeParseInt(formData.funcao_id)
-          : 1,
-        cargo_id: (safeParseInt(formData.cargo_id) >= 1 && safeParseInt(formData.cargo_id) <= 10)
-          ? safeParseInt(formData.cargo_id)
           : 1,
         genero_id: (safeParseInt(formData.genero_id) >= 1 && safeParseInt(formData.genero_id) <= 10)
           ? safeParseInt(formData.genero_id)

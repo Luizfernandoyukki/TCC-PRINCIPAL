@@ -27,6 +27,10 @@
     },
     "plugins": [
       "expo-sqlite"
-    ]
+    ],
+    "extra": {
+      "EXPO_PUBLIC_SUPABASE_URL": "https://fvnunimmhlabeppyqshx.supabase.com",
+      "EXPO_PUBLIC_SUPABASE_KEY": "SUA_CHAVE_PUBLICA_AQUI"
+    }
   }
 }

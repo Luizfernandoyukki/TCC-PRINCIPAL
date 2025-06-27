@@ -30,10 +30,10 @@ function AppRoutes() {
   const [dbInitialized, setDbInitialized] = React.useState(false); 
 
 
-  React.useEffect(() => {
+    React.useEffect(() => {
     if (user) {
-
-      setUserRole(user.role || 1); 
+      // Assumindo que user.hierarquia_nivel vem do Supabase
+      setUserRole(user.hierarquia_nivel || 1); 
     } else {
       setUserRole(null);
     }
@@ -76,20 +76,17 @@ function AppRoutes() {
   });
 
   return (
-    <Stack.Navigator {...(user
-      ? { initialRouteName: 'MenuPrincipalADM' }
-      : { initialRouteName: 'Login' }
-    )}>
+    <Stack.Navigator>
       {user ? (
         <>
-          {CADASTRO_ROUTES && CADASTRO_ROUTES.map((route) => (
+        {filteredProtectedRoutes.map((route) => (
             <Stack.Screen
               key={route.name}
               name={route.name}
               component={route.component}
             />
           ))}
-          {filteredProtectedRoutes.map((route) => (
+          {CADASTRO_ROUTES && CADASTRO_ROUTES.map((route) => (
             <Stack.Screen
               key={route.name}
               name={route.name}

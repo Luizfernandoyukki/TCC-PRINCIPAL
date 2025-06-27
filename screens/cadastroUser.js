@@ -23,7 +23,7 @@ import headerStyles from '../styles/Estilocabecalho';
 import styles from '../styles/EstilodeFormulario';
 
 
-export default function CadastroScreen({ navigation }) {
+export default function CadastroUserScreen({ navigation }) {
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const {
@@ -300,14 +300,6 @@ export default function CadastroScreen({ navigation }) {
                   options={opcoes.funcoes}
                   onSelect={(value) => handleChange('funcao_id', value)}
                   error={errors.funcao_id}
-                />
-                
-                <SelectorMenu
-                  label="Selecione o Cargo*"
-                  value={formData.cargo_id}
-                  options={opcoes.cargos}
-                  onSelect={(value) => handleChange('cargo_id', value)}
-                  error={errors.cargo_id}
                 />
               </View>
             </View>

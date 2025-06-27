@@ -71,7 +71,7 @@ export default function LoginScreen({ navigation }) {
       >
         <Text style={styles.title}>LOGIN</Text>
         <TextInput
-          label="Nome"
+          label="E-mail"
           value={nome}
           onChangeText={setNome}
           mode="flat"
@@ -79,7 +79,7 @@ export default function LoginScreen({ navigation }) {
           underlineColor="#d1d5db"
           activeUnderlineColor="#3b82f6"
           theme={{ colors: { text: '#1f2937', placeholder: '#9ca3af' } }}
-          placeholder="Digite seu nome"
+          placeholder="Digite seu E-mail"
         />
         <TextInput
           label="Senha"

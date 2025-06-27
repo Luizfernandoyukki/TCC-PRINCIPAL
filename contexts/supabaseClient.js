@@ -9,18 +9,17 @@ const ExpoSecureStoreAdapter = {
   removeItem: (key) => SecureStore.deleteItemAsync(key),
 };
 
-// Configurações base (substitua por variáveis de ambiente em produção)
 const SUPABASE_CONFIG = {
   url: process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://fvnunimmhlabeppyqshx.supabase.co',
   key: process.env.EXPO_PUBLIC_SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2bnVuaW1taGxhYmVwcHlxc2h4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk4NTg0NjIsImV4cCI6MjA2NTQzNDQ2Mn0.1i3Xzfm00I_kINNc2eKZxUM6YGtt6QBNRf2z6yvrlCM',
   options: {
     auth: {
       storage: ExpoSecureStoreAdapter,
-      persistSession: true,
+      persistSession: true, // Alterado para true
       autoRefreshToken: true,
       detectSessionInUrl: false,
       flowType: 'pkce',
-      debug: __DEV__, // Apenas logs em desenvolvimento
+      debug: __DEV__,
     },
     global: {
       headers: {
@@ -30,12 +29,12 @@ const SUPABASE_CONFIG = {
   },
 };
 
-// Validação básica das credenciais
+
 if (!SUPABASE_CONFIG.url || !SUPABASE_CONFIG.key) {
   throw new Error('Supabase URL and Key são obrigatórios');
 }
 
-// Criação do cliente Supabase
+
 export const supabase = createClient(
   SUPABASE_CONFIG.url,
   SUPABASE_CONFIG.key,

@@ -1,6 +1,6 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import NetInfo from '@react-native-community/netinfo';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Image, ScrollView, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
 import { supabase } from '../../../contexts/supabaseClient';
@@ -18,11 +18,23 @@ export default function CadastroEstoque({ navigation }) {
     valor: '',
     modalidade: '',
     observacao: '',
-    funcionario_id: supabase.auth.user()?.id,
+    funcionario_id: '',
     cliente_id: '',
     disponivel_geral: true,
     quantidade_reservada: 0
   });
+  useEffect(() => {
+  const fetchUserId = async () => {
+    const { data, error } = await supabase.auth.getUser();
+    if (data?.user) {
+      setFormData(prev => ({ ...prev, funcionario_id: data.user.id }));
+    } else {
+      console.log('Erro ao buscar usuário logado:', error);
+    }
+  };
+
+  fetchUserId();
+}, []);
   const [unidadeMedida, setUnidadeMedida] = useState('un');
   const [codigoBarras, setCodigoBarras] = useState('');
   const [showDatePickerAquisicao, setShowDatePickerAquisicao] = useState(false);

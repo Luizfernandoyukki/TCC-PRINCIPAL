@@ -30,19 +30,87 @@ export const AuthProvider = ({ children }) => {
     };
 
     loadSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session) {
-          setUser(session.user);
-          await loadUserProfile(session.user.id);
-        } else {
-          await handleLogout();
+    
+    const syncPendingOperations = async () => {
+      const pendingOps = await AsyncStorage.getItem('pendingAuthOps');
+      if (pendingOps && isOnline) {
+        try {
+          const ops = JSON.parse(pendingOps);
+          // Processar operações pendentes
+          await AsyncStorage.removeItem('pendingAuthOps');
+        } catch (error) {
+          console.error('Erro ao sincronizar operações:', error);
         }
       }
-    );
+    };
 
-    return () => subscription?.unsubscribe();
+    // Chame sempre que a conexão for restabelecida
+    useEffect(() => {
+      if (isOnline) syncPendingOperations();
+    }, [isOnline]);
+
+    const [isOnline, setIsOnline] = useState(true);
+
+    useEffect(() => {
+      const checkConnection = async () => {
+        const online = await checkSupabaseConnection();
+        setIsOnline(online);
+      };
+      
+      checkConnection();
+    }, []);
+
+    const signUp = async (email, password, userData) => {
+    try {
+      setLoading(true);
+      
+      // 1. Criar usuário no Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            nome: userData.nome,
+            cpf: userData.CPF
+          }
+        }
+      });
+
+      if (authError) throw authError;
+      if (!authData.user) throw new Error('Falha ao criar usuário');
+
+      // 2. Criar perfil no banco de dados
+      const { error: profileError } = await supabase
+        .from('funcionario')
+        .insert({
+          id: authData.user.id,
+          ...userData
+        });
+
+      if (profileError) throw profileError;
+
+      return authData.user;
+    } catch (error) {
+      console.error('Erro no cadastro:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Adicione ao value do Provider
+  return (
+    <AuthContext.Provider value={{
+      user,
+      userRole,
+      loading,
+      login,
+      logout,
+      signUp // Nova função exposta
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
   }, []);
 
   const loadUserProfile = async (userId) => {
