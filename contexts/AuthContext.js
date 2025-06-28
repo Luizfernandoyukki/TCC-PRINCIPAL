@@ -1,4 +1,3 @@
-// src/contexts/AuthContext.js
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from './supabaseClient';
@@ -9,15 +8,46 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isOnline, setIsOnline] = useState(true);
+
+  useEffect(() => {
+    const checkConnection = async () => {
+      try {
+        const { error } = await supabase.from('test').select('*').limit(1); // uma forma de testar conexão
+        setIsOnline(!error);
+      } catch {
+        setIsOnline(false);
+      }
+    };
+    checkConnection();
+  }, []);
+
+  useEffect(() => {
+    const syncPendingOperations = async () => {
+      const pendingOps = await AsyncStorage.getItem('pendingAuthOps');
+      if (pendingOps && isOnline) {
+        try {
+          const ops = JSON.parse(pendingOps);
+          // Processar operações pendentes aqui
+          await AsyncStorage.removeItem('pendingAuthOps');
+        } catch (error) {
+          console.error('Erro ao sincronizar operações:', error);
+        }
+      }
+    };
+
+    if (isOnline) {
+      syncPendingOperations();
+    }
+  }, [isOnline]);
 
   useEffect(() => {
     const loadSession = async () => {
       try {
         setLoading(true);
         const { data: { session }, error } = await supabase.auth.getSession();
-        
         if (error) throw error;
-        
+
         if (session) {
           setUser(session.user);
           await loadUserProfile(session.user.id);
@@ -30,41 +60,31 @@ export const AuthProvider = ({ children }) => {
     };
 
     loadSession();
-    
-    const syncPendingOperations = async () => {
-      const pendingOps = await AsyncStorage.getItem('pendingAuthOps');
-      if (pendingOps && isOnline) {
-        try {
-          const ops = JSON.parse(pendingOps);
-          // Processar operações pendentes
-          await AsyncStorage.removeItem('pendingAuthOps');
-        } catch (error) {
-          console.error('Erro ao sincronizar operações:', error);
-        }
-      }
-    };
+  }, []);
 
-    // Chame sempre que a conexão for restabelecida
-    useEffect(() => {
-      if (isOnline) syncPendingOperations();
-    }, [isOnline]);
+  const loadUserProfile = async (userId) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from('funcionario')
+        .select('hierarquia_id')
+        .eq('id', userId)
+        .single();
 
-    const [isOnline, setIsOnline] = useState(true);
+      if (error) throw error;
+      if (!profile) throw new Error('Perfil não encontrado');
 
-    useEffect(() => {
-      const checkConnection = async () => {
-        const online = await checkSupabaseConnection();
-        setIsOnline(online);
-      };
-      
-      checkConnection();
-    }, []);
+      setUserRole(profile.hierarquia_id);
+      await AsyncStorage.setItem('userRole', profile.hierarquia_id.toString());
+    } catch (error) {
+      console.error('Erro ao carregar perfil:', error);
+      setUserRole(4); // default
+    }
+  };
 
-    const signUp = async (email, password, userData) => {
+  const signUp = async (email, password, userData) => {
     try {
       setLoading(true);
-      
-      // 1. Criar usuário no Auth
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -79,7 +99,6 @@ export const AuthProvider = ({ children }) => {
       if (authError) throw authError;
       if (!authData.user) throw new Error('Falha ao criar usuário');
 
-      // 2. Criar perfil no banco de dados
       const { error: profileError } = await supabase
         .from('funcionario')
         .insert({
@@ -98,54 +117,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Adicione ao value do Provider
-  return (
-    <AuthContext.Provider value={{
-      user,
-      userRole,
-      loading,
-      login,
-      logout,
-      signUp // Nova função exposta
-    }}>
-      {children}
-    </AuthContext.Provider>
-  );
-  }, []);
-
-  const loadUserProfile = async (userId) => {
-    try {
-      const { data: profile, error } = await supabase
-        .from('funcionario')
-        .select('hierarquia_id')
-        .eq('id', userId)
-        .single();
-
-      if (error) throw error;
-      if (!profile) throw new Error('Perfil não encontrado');
-
-      setUserRole(profile.hierarquia_id);
-      await AsyncStorage.setItem('userRole', profile.hierarquia_id.toString());
-    } catch (error) {
-      console.error('Erro ao carregar perfil:', error);
-      setUserRole(4); // Define como motorista se ocorrer erro
-    }
-  };
-
-  const handleLogout = async () => {
-    setUser(null);
-    setUserRole(null);
-    await AsyncStorage.removeItem('userRole');
-  };
-
   const login = async (email, password) => {
     try {
       setLoading(true);
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       return data;
     } finally {
@@ -163,14 +138,16 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const handleLogout = async () => {
+    setUser(null);
+    setUserRole(null);
+    await AsyncStorage.removeItem('userRole');
+  };
+
   return (
-    <AuthContext.Provider value={{
-      user,
-      userRole,
-      loading,
-      login,
-      logout
-    }}>
+    <AuthContext.Provider
+      value={{ user, userRole, loading, isOnline, login, logout, signUp }}
+    >
       {children}
     </AuthContext.Provider>
   );

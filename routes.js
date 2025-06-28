@@ -3,7 +3,6 @@ import ErrorScreen from './screens/Error';
 import EsqueciMinhaSenhaScreen from './screens/esqueciMinhaSenha';
 import LoginScreen from './screens/Login';
 
-import MenuCadastroScreen from './screens/menuCadastro1';
 import MenuPrincipalADMScreen from './screens/menuPrincipalADM';
 import MenuPrincipalEXPScreen from './screens/menuPrincipalEXP';
 import MenuPrincipalMTRScreen from './screens/menuPrincipalMTR';
@@ -47,8 +46,7 @@ import CadastroRotas from './screens/Entidades/Cadastros/cadastroRotas';
 import CadastroSaida from './screens/Entidades/Cadastros/cadastroSaidas';
 import CadastroVeiculos from './screens/Entidades/Cadastros/cadastroVeiculos';
 
-
-
+import EditarEstoqueScreen from './screens/Entidades/Editar/EditarEstoque';
 
 export const USER_ROLES = {
   ADMIN: 1,      
@@ -79,12 +77,13 @@ export const CADASTRO_ROUTES = [
 ];
 
 export const PROTECTED_ROUTES = [
-  { name: 'MenuCadastro', component: MenuCadastroScreen },
   { name: 'MenuPrincipalADM', component: MenuPrincipalADMScreen },
   { name: 'MenuPrincipalEXP', component: MenuPrincipalEXPScreen },
   { name: 'MenuPrincipalPDO', component: MenuPrincipalPDOScreen },
   { name: 'MenuPrincipalMTR', component: MenuPrincipalMTRScreen },
   { name: 'Error', component: ErrorScreen },
+
+  {name: 'EditarEstoque', component: EditarEstoqueScreen},
 
   { name: 'Estoque', component: EstoqueScreen },
   { name: 'Estoque1', component: EstoqueScreen1 },

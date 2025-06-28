@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, FlatList, Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, Image, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../contexts/supabaseClient';
 import { databaseService } from '../../services/localDatabase';
 import styles from '../../styles/EstilosdeEntidade';
@@ -9,6 +9,7 @@ export default function FuncionariosScreen({ navigation }) {
   const [expandedId, setExpandedId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [useLocalData, setUseLocalData] = useState(false);
+const [filterText, setFilterText] = useState('');
 
   useEffect(() => {
     fetchFuncionarios();
@@ -65,7 +66,6 @@ export default function FuncionariosScreen({ navigation }) {
               cidade,
               uf
             ),
-            cargo:cargo_id(nome),
             funcao:funcao_id(nome),
             genero:genero_id(nome),
             superior:superior_id(nome)
@@ -320,7 +320,7 @@ export default function FuncionariosScreen({ navigation }) {
       <View style={styles.content}>
         <TouchableOpacity
           style={styles.button}
-          onPress={() => navigation.navigate('CadastroFuncionario')}
+          onPress={() => navigation.navigate('CadastroUser')}
         >
           <Text style={styles.buttonText}>NOVO FUNCIONÁRIO</Text>
         </TouchableOpacity>

@@ -665,7 +665,82 @@ dataSourceToggle: {
 dataSourceText: {
   fontSize: 12,
   color: '#043b57',
-}
+},
+filtroInputContainer: {
+  flexDirection: 'row', // Alinha os filhos na horizontal
+  alignItems: 'center', // Alinha verticalmente no centro (opcional)
+  backgroundColor: '#fff',
+  borderRadius: 10,
+  height: 40,
+  paddingHorizontal: 10,
+  borderWidth: 1,
+  borderColor: '#ccc',
+  marginBottom:5,
+},
+
+filtroIcon: {
+  width: 20,
+  height: 20,
+  marginRight: 8,
+},
+
+filtroInput: {
+  flex: 1, // Ocupa o espaço restante
+  fontSize: 16,
+  color: '#000',
+},
+filtroLabel:{
+  fontSize: 18,
+  color: '#000',
+  marginRight: 10,
+  fontWeight: 'bold',
+},
+scrollContent: {
+  padding: 20,
+  paddingBottom: 40,
+  backgroundColor: '#844a05', // para combinar com container
+  flexGrow: 1,
+},
+section: {
+  backgroundColor: '#fadb53',
+  borderRadius: 15,
+  padding: 20,
+  marginBottom: 20,
+  borderWidth: 1,
+  borderColor: '#ccc',
+},
+label: {
+  marginBottom: 8,
+  color: '#043b57',
+  fontWeight: 'bold',
+},
+input: {
+  backgroundColor: 'white',
+  marginBottom: 15,
+  color: '#043b57',
+  borderRadius: 5,
+  paddingHorizontal: 10,
+  height: 40,
+  borderColor: '#043b57',
+  borderWidth: 1,
+},
+buttonTextInput: {
+    fontWeight: 'bold',
+    fontSize: 20,
+    color: '#GF043b57',
+  },
+buttonEditar: {
+    backgroundColor: '#14721d',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 20,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+  },
 });
 
 export default styles;

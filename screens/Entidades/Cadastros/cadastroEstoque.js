@@ -58,44 +58,43 @@ export default function CadastroEstoque({ navigation }) {
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) return;
-    setLoading(true);
-    try {
-      const estoqueData = {
-        nome: formData.nome.trim(),
-        quantidade: parseInt(formData.quantidade),
-        numero_serie: formData.numero_serie?.trim() || null,
-        tipo: formData.tipo,
-        data_aquisicao: formData.data_aquisicao?.toISOString().split('T')[0] || null,
-        data_validade: formData.data_validade?.toISOString().split('T')[0] || null,
-        peso: formData.peso ? parseFloat(formData.peso) : null,
-        valor: formData.valor ? parseFloat(formData.valor) : null,
-        modalidade: formData.modalidade || null,
-        observacao: formData.observacao?.trim() || null,
-        funcionario_id: formData.funcionario_id,
-        cliente_id: formData.cliente_id || null,
-        unidade_medida: unidadeMedida || null,
-        codigo_barras: codigoBarras || null,
-        disponivel_geral: formData.disponivel_geral,
-        quantidade_reservada: formData.quantidade_reservada || 0
-      };
+  if (!validateForm()) return;
+  setLoading(true);
+  try {
+    const estoqueData = {
+      nome: formData.nome.trim(),
+      quantidade: parseInt(formData.quantidade),
+      numero_serie: formData.numero_serie?.trim() || null, // "lote"
+      tipo: formData.tipo || null,
+      data_aquisicao: formData.data_aquisicao?.toISOString().split('T')[0] || null,
+      data_validade: formData.data_validade?.toISOString().split('T')[0] || null,
+      peso: formData.peso ? parseFloat(formData.peso) : null,
+      valor: formData.valor ? parseFloat(formData.valor) : null,
+      modalidade: formData.modalidade || null,
+      observacao: formData.observacao?.trim() || null,
+      funcionario_id: formData.funcionario_id,
+      cliente_id: formData.cliente_id ? Number(formData.cliente_id) : null,
+      quantidade_reservada: formData.quantidade_reservada || 0,
+      
+    };
 
-      const state = await NetInfo.fetch();
-      if (state.isConnected) {
-        const { error } = await supabase.from('estoque').insert([estoqueData]);
-        if (error) throw error;
-      } else {
-        await databaseService.insertWithUUID('estoque', estoqueData);
-      }
-
-      Alert.alert('Sucesso', 'Item de estoque cadastrado com sucesso!');
-      navigation.goBack();
-    } catch (error) {
-      Alert.alert('Erro', error.message || 'Falha ao cadastrar estoque');
-    } finally {
-      setLoading(false);
+    const state = await NetInfo.fetch();
+    if (state.isConnected) {
+      const { error } = await supabase.from('estoque').insert([estoqueData]);
+      if (error) throw error;
+    } else {
+      await databaseService.insertWithUUID('estoque', estoqueData);
     }
-  };
+
+    Alert.alert('Sucesso', 'Item de estoque cadastrado com sucesso!');
+    navigation.goBack();
+  } catch (error) {
+    Alert.alert('Erro', error.message || 'Falha ao cadastrar estoque');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <View style={styles.container}>
@@ -131,7 +130,7 @@ export default function CadastroEstoque({ navigation }) {
           {errors.nome && <Text style={styles.errorText}>{errors.nome}</Text>}
 
           <TextInput
-            label="Número de Série"
+            label="Lote"
             value={formData.numero_serie}
             onChangeText={text => handleChange('numero_serie', text)}
             style={styles.input}
@@ -217,33 +216,6 @@ export default function CadastroEstoque({ navigation }) {
             onChangeText={text => handleChange('tipo', text)}
             style={styles.input}
           />
-
-          <Text style={styles.label}>Unidade de Medida *</Text>
-          <View style={styles.radioGroup}>
-            {['kg', 'g', 'l', 'ml', 'un'].map((item) => (
-              <TouchableOpacity
-                key={item}
-                style={[
-                  styles.radioButton,
-                  unidadeMedida === item && styles.radioButtonSelected
-                ]}
-                onPress={() => setUnidadeMedida(item)}
-              >
-                <Text style={unidadeMedida === item ? styles.radioTextSelected : styles.radioText}>
-                  {item.toUpperCase()}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <TextInput
-            label="Código de Barras (Opcional)"
-            value={codigoBarras}
-            onChangeText={setCodigoBarras}
-            style={styles.input}
-            keyboardType="numeric"
-          />
-
           <TextInput
             label="Modalidade"
             value={formData.modalidade}

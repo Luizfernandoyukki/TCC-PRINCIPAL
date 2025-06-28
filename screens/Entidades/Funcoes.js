@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Alert, FlatList, Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, Image, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../contexts/supabaseClient';
 import { databaseService } from '../../services/localDatabase';
 import styles from '../../styles/EstilosdeEntidade';
 
-export default function CargosFuncoesScreen({ navigation }) {
+export default function FuncoesScreen({ navigation }) {
   const [dados, setDados] = useState({
     cargos: [],
     funcoes: [],
@@ -32,6 +32,8 @@ export default function CargosFuncoesScreen({ navigation }) {
           funcoes: funcoes || [],
           abaAtiva: dados.abaAtiva
         });
+        const [filterText, setFilterText] = useState('');
+
       } else {
         // Versão Supabase
         const [cargos, funcoes] = await Promise.all([

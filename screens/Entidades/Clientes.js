@@ -11,6 +11,7 @@ export default function ClientesScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('nome');
+const [filterText, setFilterText] = useState('');
 
   useEffect(() => {
     fetchClientes();

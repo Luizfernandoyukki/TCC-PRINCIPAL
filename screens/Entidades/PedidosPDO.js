@@ -9,6 +9,7 @@ export default function PedidosScreen({ navigation }) {
   const [expandedId, setExpandedId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [useLocalData, setUseLocalData] = useState(false);
+const [filterText, setFilterText] = useState('');
 
   useEffect(() => {
     fetchPedidos();

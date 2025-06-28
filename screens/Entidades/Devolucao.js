@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, FlatList, Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, Image, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { databaseService } from '../../services/localDatabase';
 import styles from '../../styles/EstilosdeEntidade';
 import { getAllLocal } from '../../utils/localEntityService';
@@ -8,6 +8,7 @@ export default function DevolucaoScreen({ navigation }) {
   const [devolucoes, setDevolucoes] = useState([]);
   const [expandedId, setExpandedId] = useState(null);
   const [loading, setLoading] = useState(true);
+const [filterText, setFilterText] = useState('');
 
   useEffect(() => {
     fetchDevolucoes();

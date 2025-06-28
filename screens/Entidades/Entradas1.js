@@ -7,6 +7,7 @@ export default function EntradasScreen({ navigation }) {
   const [entradas, setEntradas] = useState([]);
   const [expandedId, setExpandedId] = useState(null);
   const [loading, setLoading] = useState(true);
+const [filterText, setFilterText] = useState('');
 
   useEffect(() => {
     fetchEntradas();

@@ -292,14 +292,6 @@ export default function CadastroScreen({ navigation }) {
                   onSelect={(value) => handleChange('funcao_id', value)}
                   error={errors.funcao_id}
                 />
-                
-                <SelectorMenu
-                  label="Selecione o Cargo*"
-                  value={formData.cargo_id}
-                  options={opcoes.cargos}
-                  onSelect={(value) => handleChange('cargo_id', value)}
-                  error={errors.cargo_id}
-                />
               </View>
             </View>
           )}

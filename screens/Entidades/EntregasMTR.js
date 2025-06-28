@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, FlatList, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../contexts/supabaseClient';
 import { databaseService } from '../../services/localDatabase'; // Adicionado para operações locais
 import styles from '../../styles/EstilosdeEntidade';
@@ -9,6 +9,7 @@ export default function EntregasScreen({ navigation }) {
   const [expandedId, setExpandedId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [useLocalData, setUseLocalData] = useState(false); // Estado para alternar entre local/Supabase
+const [filterText, setFilterText] = useState('');
 
   useEffect(() => {
     fetchEntregas();

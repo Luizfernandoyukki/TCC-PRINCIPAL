@@ -9,6 +9,7 @@ export default function EntregasScreen({ navigation }) {
   const [expandedId, setExpandedId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [useLocalData, setUseLocalData] = useState(false); // Estado para alternar entre local/Supabase
+const [filterText, setFilterText] = useState('');
 
   useEffect(() => {
     fetchEntregas();

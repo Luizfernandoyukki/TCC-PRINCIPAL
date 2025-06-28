@@ -30,6 +30,7 @@ export default function BalancoScreen({ navigation }) {
 
   // Referência para o ViewShot do modal
   const viewShotRef = useRef();
+const [filterText, setFilterText] = useState('');
 
   // Exemplo de usuário logado (ajuste conforme seu contexto)
   const usuarioLogado = { nome: 'Usuário Exemplo' };
