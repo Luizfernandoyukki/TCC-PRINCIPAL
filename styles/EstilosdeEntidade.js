@@ -690,16 +690,14 @@ filtroInput: {
   color: '#000',
 },
 filtroLabel:{
-  fontSize: 18,
+  fontSize: 19,
   color: '#000',
   marginRight: 10,
-  fontWeight: 'bold',
 },
 scrollContent: {
   padding: 20,
   paddingBottom: 40,
   backgroundColor: '#844a05', // para combinar com container
-  flexGrow: 1,
 },
 section: {
   backgroundColor: '#fadb53',
@@ -720,14 +718,14 @@ input: {
   color: '#043b57',
   borderRadius: 5,
   paddingHorizontal: 10,
-  height: 40,
+  minHeight: 50,
   borderColor: '#043b57',
   borderWidth: 1,
 },
 buttonTextInput: {
     fontWeight: 'bold',
     fontSize: 20,
-    color: '#GF043b57',
+    color: '#000',
   },
 buttonEditar: {
     backgroundColor: '#14721d',
@@ -741,6 +739,221 @@ buttonEditar: {
     shadowOpacity: 0.3,
     shadowRadius: 6,
   },
+  navbarFiltro: {
+    marginVertical: 10,
+  },
+  filtroLabel: {
+    fontWeight: 'bold',
+    color: '#043b57',
+    marginBottom: 5,
+  },
+  filtroInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    paddingHorizontal: 10,
+    height: 40,
+  },
+  filtroIcon: {
+    width: 20,
+    height: 20,
+    marginRight: 8,
+  },
+  filtroInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#043b57',
+  },
+
+  // LISTA DE ITENS
+  itemContainer: {
+    marginBottom: 10,
+  },
+  itemBox: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 15,
+    elevation: 2,
+  },
+  itemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  itemTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#043b57',
+  },
+  deleteIconButton: {
+    padding: 5,
+    backgroundColor: '#f44336',
+    borderRadius: 15,
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteIconText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 18,
+  },
+  expandedContent: {
+    marginTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#ccc',
+    paddingTop: 10,
+  },
+  itemDetail: {
+    fontSize: 14,
+    color: '#043b57',
+    marginBottom: 4,
+  },
+
+  // AÇÕES (botões no item expandido)
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 10,
+  },
+  actionButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 25,
+    marginLeft: 10,
+  },
+  viewButton: {
+    backgroundColor: '#043b57',
+  },
+  actionButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+
+  // FlatList
+  listContent: {
+    paddingBottom: 20,
+  },
+
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 20,
+    fontSize: 16,
+    color: '#888',
+  },
+
+  // BOTÃO FILTRO ATIVO/INATIVO NO MODAL (filtro 3 pontinhos)
+  filterButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+  },
+  filterButtonActive: {
+    backgroundColor: '#043b57',
+  },
+  filterButtonText: {
+    fontWeight: 'bold',
+    color: '#000',
+  },
+
+  // Você pode usar o filtro ativo para mudar a cor do texto também:
+  filterButtonActiveText: {
+    color: '#fff',
+  },
+  radioGroup: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 15,
+    justifyContent: 'flex-start',
+  },
+  radioButton: {
+    borderWidth: 1,
+    borderColor: '#043b57',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: 'white',
+  },
+  radioButtonSelected: {
+    backgroundColor: '#043b57',
+  },
+  radioText: {
+    color: '#043b57',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  radioTextSelected: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 15,
+  },
+  checkboxRow: {
+    marginBottom: 6,
+  },
+   actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    flexWrap: 'wrap',
+  },
+
+  actionButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    marginVertical: 4,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+
+  viewButton: {
+    backgroundColor: '#2a7ad9', // azul
+  },
+
+  addButton: {
+    backgroundColor: '#28a745', // verde
+  },
+
+  deleteButton: {
+    backgroundColor: '#dc3545', // vermelho
+  },
+
+  actionButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+
+  // Modal (opcional)
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+    paddingTop: 40,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  modalLabel: {
+    fontWeight: 'bold',
+  },
+  pickerContainer: {
+  borderWidth: 1,
+  borderColor: '#ccc',
+  borderRadius: 5,
+  marginBottom: 15,
+  overflow: 'hidden',
+},
 });
 
 export default styles;

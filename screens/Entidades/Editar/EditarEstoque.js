@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Image, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../../contexts/supabaseClient';
 import { databaseService } from '../../../services/localDatabase';
 import styles from '../../../styles/EstilosdeEntidade';
@@ -93,7 +93,9 @@ export default function EditarEstoque({ route, navigation }) {
   }
 
   return (
-     <View style={styles.container}>
+     <KeyboardAvoidingView style={styles.container}
+     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+           keyboardVerticalOffset={100}>
           <StatusBar backgroundColor="#043b57" barStyle="light-content" />
           <View style={styles.header}>
             <View style={styles.headerContent}>
@@ -199,6 +201,6 @@ export default function EditarEstoque({ route, navigation }) {
         </TouchableOpacity>
       </View>
     </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }

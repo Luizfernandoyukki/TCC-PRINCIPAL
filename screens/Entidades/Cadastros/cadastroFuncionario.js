@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StatusBar,
   TouchableOpacity,
@@ -17,12 +19,12 @@ import {
   Text,
   TextInput
 } from 'react-native-paper';
-import useCadastroForm from '../script/LogicadeFormulario';
-import headerStyles from '../styles/Estilocabecalho';
-import styles from '../styles/EstilodeFormulario';
+import useCadastroForm from '../../../script/LogicadeFormulario';
+import headerStyles from '../../../styles/Estilocabecalho';
+import styles from '../../../styles/EstilodeFormulario';
 
 
-export default function CadastroScreen({ navigation }) {
+export default function CadastroFuncionariosScreen({ navigation }) {
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const {
@@ -115,7 +117,9 @@ export default function CadastroScreen({ navigation }) {
 
   return (
     <Provider>
-      <View style={headerStyles.container}>
+      <KeyboardAvoidingView style={headerStyles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={100}>
         <StatusBar backgroundColor="#043b57" barStyle="light-content" />
         
         {/* Cabeçalho */}
@@ -123,14 +127,15 @@ export default function CadastroScreen({ navigation }) {
           <View style={headerStyles.headerContent}>
             <TouchableOpacity onPress={() => navigation.goBack()}>
               <Image 
-                source={require('../Assets/logo.png')}
+                source={require('../../../Assets/logo.png')}
                 style={headerStyles.logo}
                 resizeMode="contain"
               />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate('Error')}>
+            <TouchableOpacity  onPress={() => navigation.navigate('Error')}
+              >
               <Image 
-                source={require('../Assets/alerta.png')} 
+                source={require('../../../Assets/alerta.png')} 
                 style={headerStyles.alerta}
                 resizeMode="contain"
               />
@@ -557,7 +562,7 @@ export default function CadastroScreen({ navigation }) {
             onChange={handleDateChange}
           />
         )}
-      </View>
+      </KeyboardAvoidingView>
     </Provider>
   );
 }

@@ -40,13 +40,19 @@ import CadastroDevolucoes from './screens/Entidades/Cadastros/cadastroDevolucoes
 import CadastroEntrada from './screens/Entidades/Cadastros/cadastroEntradas';
 import CadastroEntrega from './screens/Entidades/Cadastros/cadastroEntregas';
 import CadastroEstoque from './screens/Entidades/Cadastros/cadastroEstoque';
+import CadastroFuncionariosScreen from './screens/Entidades/Cadastros/cadastroFuncionario';
 import CadastroFuncoes from './screens/Entidades/Cadastros/cadastroFuncoes';
 import CadastroPedidos from './screens/Entidades/Cadastros/cadastroPedidos';
 import CadastroRotas from './screens/Entidades/Cadastros/cadastroRotas';
 import CadastroSaida from './screens/Entidades/Cadastros/cadastroSaidas';
 import CadastroVeiculos from './screens/Entidades/Cadastros/cadastroVeiculos';
 
+
+
 import EditarEstoqueScreen from './screens/Entidades/Editar/EditarEstoque';
+import EditarFuncionarioScreen from './screens/Entidades/Editar/EditarFuncionario';
+
+
 
 export const USER_ROLES = {
   ADMIN: 1,      
@@ -73,7 +79,8 @@ export const CADASTRO_ROUTES = [
   { name: 'CadastroPedidos', component: CadastroPedidos },
   { name: 'CadastroFuncoes', component: CadastroFuncoes },
   { name: 'CadastroDevolucoes', component: CadastroDevolucoes },
-  { name: 'CadastroBalanco', component: CadastroBalanco }
+  { name: 'CadastroBalanco', component: CadastroBalanco },
+  {name: 'CadastroFuncionarios', component: CadastroFuncionariosScreen},
 ];
 
 export const PROTECTED_ROUTES = [
@@ -84,6 +91,7 @@ export const PROTECTED_ROUTES = [
   { name: 'Error', component: ErrorScreen },
 
   {name: 'EditarEstoque', component: EditarEstoqueScreen},
+  {name: 'EditarFuncionario', component: EditarFuncionarioScreen},
 
   { name: 'Estoque', component: EstoqueScreen },
   { name: 'Estoque1', component: EstoqueScreen1 },

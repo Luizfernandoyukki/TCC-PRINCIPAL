@@ -121,20 +121,25 @@ if (!tableCheck || tableCheck.length === 0) {
       );
 
       -- Tabela de Clientes
-      CREATE TABLE IF NOT EXISTS cliente (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nome TEXT NOT NULL,
-        cpf TEXT,
-        cnpj TEXT,
-        rg TEXT,
-        tipo TEXT NOT NULL,
-        observacao TEXT,
-        endereco_id INTEGER,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        last_sync TEXT,
-        FOREIGN KEY (endereco_id) REFERENCES endereco(id)
-      );
+      CREATE TABLE cliente (
+      id INTEGER PRIMARY KEY,
+      nome TEXT NOT NULL,
+      cpf TEXT,
+      cnpj TEXT,
+      tipo TEXT NOT NULL,
+      observacao TEXT,
+      endereco_id INTEGER NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      status TEXT DEFAULT 'ativo',
+      telefone_id INTEGER,
+      email_id INTEGER,
+      dias_entrega TEXT,
+      FOREIGN KEY (endereco_id) REFERENCES endereco(id),
+      FOREIGN KEY (telefone_id) REFERENCES telefone(id),
+      FOREIGN KEY (email_id) REFERENCES email(id)
+    );
+
 
       -- Tabela de Veículos
       CREATE TABLE IF NOT EXISTS veiculo (

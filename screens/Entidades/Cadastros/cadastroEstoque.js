@@ -1,7 +1,7 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import NetInfo from '@react-native-community/netinfo';
 import { useEffect, useState } from 'react';
-import { Alert, Image, ScrollView, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, KeyboardAvoidingView, Platform, ScrollView, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
 import { supabase } from '../../../contexts/supabaseClient';
 import { databaseService } from '../../../services/localDatabase';
@@ -97,7 +97,11 @@ export default function CadastroEstoque({ navigation }) {
 
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+  style={styles.container}
+  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+  keyboardVerticalOffset={100}
+>
       <StatusBar backgroundColor="#043b57" barStyle="light-content" />
       <View style={styles.header}>
         <View style={styles.headerContent}>
@@ -244,7 +248,7 @@ export default function CadastroEstoque({ navigation }) {
           </Button>
         </View>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

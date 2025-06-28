@@ -9,7 +9,7 @@ export default function EstoqueScreen({ navigation }) {
   const [expandedId, setExpandedId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [useLocalData, setUseLocalData] = useState(false);
-const [filterText, setFilterText] = useState('');
+  const [filterText, setFilterText] = useState('');
 
   useEffect(() => {
     fetchItensEstoque();
@@ -19,7 +19,6 @@ const [filterText, setFilterText] = useState('');
     setLoading(true);
     try {
       if (useLocalData) {
-        // Versão local com relacionamentos padrão
         const estoqueData = await databaseService.select('estoque');
         const clientes = await databaseService.select('cliente');
         const funcionarios = await databaseService.select('funcionario');
@@ -30,11 +29,9 @@ const [filterText, setFilterText] = useState('');
           funcionario: funcionarios.find(f => f.id === item.funcionario_id) || null
         }));
 
-        // Ordenar por nome
         data.sort((a, b) => a.nome.localeCompare(b.nome));
         setItens(data || []);
       } else {
-        // Versão original com Supabase
         const { data, error } = await supabase
           .from('estoque')
           .select(`
@@ -59,7 +56,6 @@ const [filterText, setFilterText] = useState('');
       }
     } catch (error) {
       Alert.alert('Erro', error.message);
-      // Se falhar com Supabase, tenta com dados locais
       if (!useLocalData) setUseLocalData(true);
     } finally {
       setLoading(false);
@@ -69,7 +65,6 @@ const [filterText, setFilterText] = useState('');
   const calcularDisponivel = (quantidade, reservada) => {
     return quantidade - reservada;
   };
-  
 
   const renderItem = ({ item }) => {
     const disponivel = calcularDisponivel(item.quantidade, item.quantidade_reservada);
@@ -91,7 +86,7 @@ const [filterText, setFilterText] = useState('');
               <Text style={styles.itemTitle}>{item.nome}</Text>
               <Text style={styles.itemSubtitle}>
                 {item.tipo || 'Sem tipo definido'}
-                {useLocalData && ' 📱'} {/* Ícone para dados locais */}
+                {useLocalData && ' 📱'}
               </Text>
             </View>
             
@@ -167,29 +162,6 @@ const [filterText, setFilterText] = useState('');
                   <Text style={styles.detailValue}>{item.funcionario.nome}</Text>
                 </View>
               )}
-              
-              <View style={styles.actionButtons}>
-                <TouchableOpacity 
-                  style={[styles.actionButton, styles.viewButton]}
-                  onPress={() => navigation.navigate('MovimentarEstoque', { itemId: item.id })}
-                >
-                  <Text style={styles.actionButtonText}>Movimentar</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={[styles.actionButton, styles.editButton]}
-                  onPress={() => navigation.navigate('EditarEstoque', { itemId: item.id })}
-                >
-                  <Text style={styles.actionButtonText}>Editar</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={[styles.actionButton, styles.deleteButton]}
-                  onPress={() => handleDeleteItem(item.id)}
-                >
-                  <Text style={styles.actionButtonText}>Remover</Text>
-                </TouchableOpacity>
-              </View>
             </View>
           )}
         </TouchableOpacity>
@@ -197,12 +169,9 @@ const [filterText, setFilterText] = useState('');
     );
   };
 
-  // Estado para filtro de nome
-  const [filtroNome, setFiltroNome] = useState('');
-
   // Filtra os itens pelo nome digitado
   const itensFiltrados = itens.filter(item =>
-    item.nome.toLowerCase().includes(filtroNome.toLowerCase())
+    item.nome.toLowerCase().includes(filterText.toLowerCase())
   );
 
   return (
@@ -219,14 +188,6 @@ const [filterText, setFilterText] = useState('');
             />
           </TouchableOpacity>
           <View style={styles.headerRightActions}>
-            <TouchableOpacity 
-              onPress={() => setUseLocalData(!useLocalData)}
-              style={styles.dataSourceToggle}
-            >
-              <Text style={styles.dataSourceText}>
-                {useLocalData ? 'Usar Nuvem' : 'Usar Local'}
-              </Text>
-            </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalPDO')}>
               <Image 
                 source={require('../../Assets/PDO.png')} 
@@ -239,14 +200,7 @@ const [filterText, setFilterText] = useState('');
       </View>
 
       <View style={styles.content}>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => navigation.navigate('CadastroEstoque')}
-        >
-          <Text style={styles.buttonText}>CADASTRAR ITEM</Text>
-        </TouchableOpacity>
-
-        {/* Navbar de filtro por nome */}
+        
         <View style={styles.navbarFiltro}>
           <Text style={styles.filtroLabel}>Filtrar por nome:</Text>
           <View style={styles.filtroInputContainer}>
@@ -258,8 +212,8 @@ const [filterText, setFilterText] = useState('');
             <TextInput
               style={styles.filtroInput}
               placeholder="Digite o nome do item"
-              value={filtroNome}
-              onChangeText={setFiltroNome}
+              value={filterText}
+              onChangeText={setFilterText}
               placeholderTextColor="#888"
             />
           </View>

@@ -317,12 +317,6 @@ export default function EstoqueScreen({ navigation }) {
             />
           </TouchableOpacity>
           <View style={styles.headerRightActions}>
-            <TouchableOpacity
-              onPress={() => setUseLocalData(!useLocalData)}
-              style={styles.dataSourceToggle}
-            >
-              <Text style={styles.dataSourceText}>{useLocalData ? 'Usar Nuvem' : 'Usar Local'}</Text>
-            </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalADM')}>
               <Image
                 source={require('../../Assets/ADM.png')}

@@ -5,83 +5,57 @@ import { databaseService } from '../../services/localDatabase';
 import styles from '../../styles/EstilosdeEntidade';
 
 export default function FuncoesScreen({ navigation }) {
-  const [dados, setDados] = useState({
-    cargos: [],
-    funcoes: [],
-    abaAtiva: 'cargos' // 'cargos' ou 'funcoes'
-  });
+  const [funcoes, setFuncoes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [useLocalData, setUseLocalData] = useState(false);
+  const [filterText, setFilterText] = useState('');
 
   useEffect(() => {
-    fetchDados();
+    fetchFuncoes();
   }, [useLocalData]);
 
-  const fetchDados = async () => {
+  const fetchFuncoes = async () => {
     setLoading(true);
     try {
       if (useLocalData) {
-        // Versão local
-        const [cargos, funcoes] = await Promise.all([
-          databaseService.select('cargo'),
-          databaseService.select('funcao')
-        ]);
-
-        setDados({
-          cargos: cargos || [],
-          funcoes: funcoes || [],
-          abaAtiva: dados.abaAtiva
-        });
-        const [filterText, setFilterText] = useState('');
-
+        const funcoesData = await databaseService.select('funcao');
+        setFuncoes(funcoesData || []);
       } else {
-        // Versão Supabase
-        const [cargos, funcoes] = await Promise.all([
-          supabase.from('cargo').select('id, nome, descricao').order('nome'),
-          supabase.from('funcao').select('id, nome, descricao').order('nome')
-        ]);
-
-        if (cargos.error || funcoes.error) throw cargos.error || funcoes.error;
-
-        setDados({
-          cargos: cargos.data || [],
-          funcoes: funcoes.data || [],
-          abaAtiva: dados.abaAtiva
-        });
+        const { data, error } = await supabase
+          .from('funcao')
+          .select('id, nome, descricao')
+          .order('nome');
+        if (error) throw error;
+        setFuncoes(data || []);
       }
     } catch (error) {
       Alert.alert('Erro', error.message);
-      // Se falhar com Supabase, tenta com dados locais
       if (!useLocalData) setUseLocalData(true);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id, tipo) => {
+  const handleDelete = async (id) => {
     Alert.alert(
-      `Excluir ${tipo === 'cargos' ? 'Cargo' : 'Função'}`,
-      `Tem certeza que deseja excluir este ${tipo === 'cargos' ? 'cargo' : 'função'}?`,
+      'Excluir Função',
+      'Tem certeza que deseja excluir esta função?',
       [
-        {
-          text: "Cancelar",
-          style: "cancel"
-        },
+        { text: "Cancelar", style: "cancel" },
         { 
           text: "Excluir", 
           onPress: async () => {
             try {
               if (useLocalData) {
-                await databaseService.delete(tipo, 'id = ?', [id]);
+                await databaseService.delete('funcao', 'id = ?', [id]);
               } else {
                 const { error } = await supabase
-                  .from(tipo)
+                  .from('funcao')
                   .delete()
                   .eq('id', id);
-                
                 if (error) throw error;
               }
-              await fetchDados();
+              await fetchFuncoes();
             } catch (error) {
               Alert.alert('Erro', `Não foi possível excluir: ${error.message}`);
             }
@@ -91,24 +65,19 @@ export default function FuncoesScreen({ navigation }) {
     );
   };
 
-  const renderItem = ({ item, tipo }) => (
+  const renderItem = ({ item }) => (
     <View style={styles.itemContainer}>
       <TouchableOpacity 
         style={[
           styles.itemBox,
           useLocalData && { borderLeftWidth: 3, borderLeftColor: '#4CAF50' }
         ]}
-        onPress={() => navigation.navigate('DetalhesCargoFuncao', { 
-          id: item.id, 
-          tipo,
-          nome: item.nome,
-          descricao: item.descricao 
-        })}
+      
       >
         <View style={{ flex: 1 }}>
           <Text style={styles.itemTitle}>
             {item.nome}
-            {useLocalData && ' 📱'} {/* Ícone para dados locais */}
+            {useLocalData && ' 📱'}
           </Text>
           {item.descricao && (
             <Text style={styles.itemSubtitle} numberOfLines={2}>
@@ -119,18 +88,7 @@ export default function FuncoesScreen({ navigation }) {
         
         <View style={styles.itemActions}>
           <TouchableOpacity 
-            onPress={() => navigation.navigate('EditarCargoFuncao', { 
-              id: item.id, 
-              tipo,
-              nome: item.nome,
-              descricao: item.descricao 
-            })}
-          >
-            <Text style={styles.actionText}>Editar</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            onPress={() => handleDelete(item.id, tipo)}
+            onPress={() => handleDelete(item.id)}
             style={{ marginLeft: 15 }}
           >
             <Text style={[styles.actionText, { color: '#f44336' }]}>Excluir</Text>
@@ -138,6 +96,11 @@ export default function FuncoesScreen({ navigation }) {
         </View>
       </TouchableOpacity>
     </View>
+  );
+
+  // Filtrar funções pelo nome
+  const funcoesFiltradas = funcoes.filter(item =>
+    item.nome.toLowerCase().includes(filterText.toLowerCase())
   );
 
   return ( 
@@ -154,14 +117,6 @@ export default function FuncoesScreen({ navigation }) {
             />
           </TouchableOpacity>
           <View style={styles.headerRightActions}>
-            <TouchableOpacity 
-              onPress={() => setUseLocalData(!useLocalData)}
-              style={styles.dataSourceToggle}
-            >
-              <Text style={styles.dataSourceText}>
-                {useLocalData ? 'Usar Nuvem' : 'Usar Local'}
-              </Text>
-            </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalADM')}>
               <Image 
                 source={require('../../Assets/ADM.png')} 
@@ -174,48 +129,11 @@ export default function FuncoesScreen({ navigation }) {
       </View>
 
       <View style={styles.content}>
-        <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[
-              styles.tabButton,
-              dados.abaAtiva === 'cargos' && styles.tabButtonActive
-            ]}
-            onPress={() => setDados({...dados, abaAtiva: 'cargos'})}
-          >
-            <Text style={[
-              styles.tabButtonText,
-              dados.abaAtiva === 'cargos' && styles.tabButtonTextActive
-            ]}>
-              CARGOS
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[
-              styles.tabButton,
-              dados.abaAtiva === 'funcoes' && styles.tabButtonActive
-            ]}
-            onPress={() => setDados({...dados, abaAtiva: 'funcoes'})}
-          >
-            <Text style={[
-              styles.tabButtonText,
-              dados.abaAtiva === 'funcoes' && styles.tabButtonTextActive
-            ]}>
-              FUNÇÕES
-            </Text>
-          </TouchableOpacity>
-        </View>
-
         <TouchableOpacity
           style={styles.button}
-          onPress={() => navigation.navigate(
-            'CadastroFuncoes', 
-            { tipo: dados.abaAtiva }
-          )}
+          onPress={() => navigation.navigate('CadastroFuncoes', { tipo: 'funcoes' })}
         >
-          <Text style={styles.buttonText}>
-            NOVO {dados.abaAtiva === 'cargos' ? 'CARGO' : 'FUNÇÃO'}
-          </Text>
+          <Text style={styles.buttonText}>NOVA FUNÇÃO</Text>
         </TouchableOpacity>
 
         {/* Navbar de filtro por nome */}
@@ -237,7 +155,7 @@ export default function FuncoesScreen({ navigation }) {
             />
             <TextInput
               style={{ flex: 1, fontSize: 16 }}
-              placeholder={`Filtrar ${dados.abaAtiva === 'cargos' ? 'cargos' : 'funções'} por nome`}
+              placeholder="Filtrar funções por nome"
               value={filterText}
               onChangeText={setFilterText}
               placeholderTextColor="#888"
@@ -249,18 +167,11 @@ export default function FuncoesScreen({ navigation }) {
           <Text style={styles.emptyText}>Carregando...</Text>
         ) : (
           <FlatList
-            data={
-              (dados.abaAtiva === 'cargos' ? dados.cargos : dados.funcoes)
-                .filter(item =>
-                  item.nome.toLowerCase().includes((filterText || '').toLowerCase())
-                )
-            }
+            data={funcoesFiltradas}
             keyExtractor={item => item.id.toString()}
-            renderItem={({ item }) => renderItem({ item, tipo: dados.abaAtiva })}
+            renderItem={renderItem}
             ListEmptyComponent={
-              <Text style={styles.emptyText}>
-                Nenhum {dados.abaAtiva === 'cargos' ? 'cargo' : 'função'} registrado.
-              </Text>
+              <Text style={styles.emptyText}>Nenhuma função registrada.</Text>
             }
             contentContainerStyle={styles.listContent}
           />
