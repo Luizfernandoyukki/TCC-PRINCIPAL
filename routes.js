@@ -49,9 +49,9 @@ import CadastroVeiculos from './screens/Entidades/Cadastros/cadastroVeiculos';
 
 
 
+
 import EditarEstoqueScreen from './screens/Entidades/Editar/EditarEstoque';
 import EditarFuncionarioScreen from './screens/Entidades/Editar/EditarFuncionario';
-
 
 
 export const USER_ROLES = {
@@ -92,6 +92,7 @@ export const PROTECTED_ROUTES = [
 
   {name: 'EditarEstoque', component: EditarEstoqueScreen},
   {name: 'EditarFuncionario', component: EditarFuncionarioScreen},
+ 
 
   { name: 'Estoque', component: EstoqueScreen },
   { name: 'Estoque1', component: EstoqueScreen1 },

@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
   ScrollView,
   StatusBar,
   TouchableOpacity,
@@ -116,7 +117,9 @@ export default function CadastroUserScreen({ navigation }) {
 
   return (
     <Provider>
-      <View style={headerStyles.container}>
+      <KeyboardAvoidingView style={styles.container}
+     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+           keyboardVerticalOffset={100}>
         <StatusBar backgroundColor="#043b57" barStyle="light-content" />
         
         {/* Cabeçalho */}
@@ -566,7 +569,7 @@ export default function CadastroUserScreen({ navigation }) {
             onChange={handleDateChange}
           />
         )}
-      </View>
+      </KeyboardAvoidingView>
     </Provider>
   );
 }

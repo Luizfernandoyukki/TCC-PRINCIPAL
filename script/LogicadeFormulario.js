@@ -345,7 +345,7 @@ export default function useCadastroForm(navigation) {
       Alert.alert('Erro', 'Preencha todos os campos obrigatórios corretamente');
       return;
     }
-    const { signUp } = useAuth();
+  
     try {
       setLoading(true);
       console.log('--- INICIANDO CADASTRO ---');
@@ -459,7 +459,6 @@ export default function useCadastroForm(navigation) {
         cpf: formData.CPF.replace(/\D/g, ''),
         ctps: formData.ctps,
         rg: formData.rg,
-        senha: senhaHash,
         data_admissao: formData.dataAdmissao,
         carga_horaria: (safeParseInt(formData.cargaHoraria) >= 1 && safeParseInt(formData.cargaHoraria) <= 10)
           ? safeParseInt(formData.cargaHoraria)

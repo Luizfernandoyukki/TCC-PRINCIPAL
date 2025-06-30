@@ -5,6 +5,10 @@ export default StyleSheet.create({
      padding: 20,
     paddingBottom: 30,
   },
+  container: {
+    flex: 1,
+    backgroundColor: '#844a05',
+  },
   section: {
     backgroundColor: '#fadb53',
     borderRadius: 10,

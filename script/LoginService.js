@@ -8,33 +8,29 @@ export const LoginService = {
       const isOnline = await checkConnection();
 
       if (isOnline) {
+        console.log('[LoginService] Conectado à internet. Tentando login online...');
         try {
           const onlineResult = await this.onlineLogin(email, senha);
           this.redirectByHierarchy(navigation, onlineResult.hierarchyLevel);
           return { ...onlineResult, isOnline: true };
         } catch (onlineError) {
-          console.log('Login online falhou, tentando offline:', onlineError.message);
+          console.error('[LoginService] Erro no login online:', onlineError.message);
+          throw new Error(onlineError.message || 'Erro ao fazer login online');
         }
-      }
-
-      try {
+      } else {
+        console.warn('[LoginService] Sem internet. Tentando login offline...');
         const offlineResult = await this.offlineLogin(email, senha);
         this.redirectByHierarchy(navigation, offlineResult.hierarchyLevel);
         return { ...offlineResult, isOnline: false };
-      } catch (offlineError) {
-        console.error('Erro no login offline:', offlineError);
-        this.redirectToLoginScreen(navigation, offlineError.message);
-        throw offlineError;
       }
     } catch (error) {
-      console.error('Erro geral no login:', error);
-      this.redirectToLoginScreen(navigation, error.message);
+      console.error('[LoginService] Falha no login:', error);
+      this.redirectToLoginScreen(navigation, error.message || 'Erro ao realizar login');
       throw error;
     }
   },
 
   async onlineLogin(email, senha) {
-    // 1. Autenticação no Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password: senha
@@ -46,7 +42,6 @@ export const LoginService = {
 
     const userId = authData.user.id;
 
-    // 2. Busca informações do funcionário
     const { data: funcionario, error: funcionarioError } = await supabase
       .from('funcionario')
       .select(`
@@ -58,12 +53,11 @@ export const LoginService = {
       .single();
 
     if (funcionarioError || !funcionario) {
-      throw new Error('Perfil de funcionário não encontrado no banco de dados');
+      throw new Error('Perfil de funcionário não encontrado no banco de dados online');
     }
 
-    // 3. Verifica se o funcionário tem hierarquia válida
     if (!funcionario.hierarquia || !funcionario.hierarquia.nivel) {
-      throw new Error('Nível de hierarquia não definido para o funcionário');
+      throw new Error('Nível de hierarquia não definido');
     }
 
     return {
@@ -74,96 +68,86 @@ export const LoginService = {
   },
 
   async offlineLogin(email, senhaDigitada) {
-    try {
-      // 1. Busca o funcionário no banco local
-      const query = `
-        SELECT 
-          f.id, 
-          f.nome, 
-          f.senha, 
-          f.hierarquia_id,
-          h.nivel as hierarquia_nivel
-        FROM funcionario f
-        JOIN hierarquia h ON f.hierarquia_id = h.id
-        JOIN email e ON e.funcionario_id = f.id
-        WHERE e.email = ? AND e.tipo = ?
-      `;
+    const query = `
+      SELECT 
+        f.id, 
+        f.nome, 
+        f.senha, 
+        f.hierarquia_id,
+        h.nivel as hierarquia_nivel
+      FROM funcionario f
+      JOIN hierarquia h ON f.hierarquia_id = h.id
+      JOIN email e ON e.funcionario_id = f.id
+      WHERE e.email = ? AND e.tipo = ?
+    `;
 
-      const result = await databaseService.executeQuery(query, [email, 'principal']);
-      
-      if (!result.rows || result.rows.length === 0) {
-        throw new Error('Usuário não encontrado no banco de dados local');
-      }
+    const result = await databaseService.executeQuery(query, [email, 'principal']);
 
-      const funcionario = result.rows._array[0];
-      
-      // 2. Verificação de senha
-      const senhaCorreta = await bcrypt.compare(senhaDigitada, funcionario.senha);
-      if (!senhaCorreta) {
-        throw new Error('Senha incorreta');
-      }
-
-      // 3. Verifica hierarquia
-      if (!funcionario.hierarquia_nivel) {
-        throw new Error('Nível de hierarquia não definido');
-      }
-
-      return {
-        success: true,
-        userId: funcionario.id,
-        hierarchyLevel: funcionario.hierarquia_nivel,
-        isOffline: true
-      };
-
-    } catch (error) {
-      console.error('Erro no login offline:', error);
-      throw new Error(error.message || 'Falha no login offline');
+    if (!result.rows || result.rows.length === 0) {
+      throw new Error('Usuário não encontrado no banco local');
     }
+
+    const funcionario = result.rows._array[0];
+
+    const senhaCorreta = await bcrypt.compare(senhaDigitada, funcionario.senha);
+    if (!senhaCorreta) {
+      throw new Error('Senha incorreta');
+    }
+
+    if (!funcionario.hierarquia_nivel) {
+      throw new Error('Nível de hierarquia indefinido');
+    }
+
+    return {
+      success: true,
+      userId: funcionario.id,
+      hierarchyLevel: funcionario.hierarquia_nivel,
+      isOffline: true
+    };
   },
 
   redirectByHierarchy(navigation, nivel) {
     const routesMap = {
-      1: 'MenuPrincipalADM',  // ADMIN
-      2: 'MenuPrincipalEXP',  // EXPEDICAO
-      3: 'MenuPrincipalPDO',  // PRODUCAO
-      4: 'MenuPrincipalMTR'   // MOTORISTA
+      1: 'MenuPrincipalADM',
+      2: 'MenuPrincipalEXP',
+      3: 'MenuPrincipalPDO',
+      4: 'MenuPrincipalMTR'
     };
 
     const targetRoute = routesMap[nivel] || 'Login';
-    
+
     if (navigation?.reset) {
       navigation.reset({
         index: 0,
         routes: [{ name: targetRoute }]
       });
     } else {
-      console.error('Navegação não disponível para redirecionamento');
+      console.error('[LoginService] Navigation reset não disponível');
     }
   },
 
   redirectToLoginScreen(navigation, errorMessage = '') {
     if (navigation?.navigate) {
-      navigation.navigate('Login', { 
-        error: errorMessage || 'Erro durante o login' 
+      navigation.navigate('Login', {
+        error: errorMessage || 'Erro ao fazer login'
       });
     } else {
-      console.error('Navegação não disponível para redirecionar para login');
+      console.error('[LoginService] Navigation.navigate não disponível');
     }
   }
 };
 
+// Verifica se há internet funcional com Supabase
 async function checkConnection() {
   try {
-    // Verificação mais robusta de conexão
     const { error } = await supabase
       .from('funcionario')
       .select('id')
       .limit(1)
       .single();
-
     return !error;
   } catch (error) {
-    console.log('Verificação de conexão falhou:', error);
+    console.error('[LoginService] Falha ao verificar conexão com Supabase:', error);
     return false;
   }
 }

@@ -953,7 +953,8 @@ buttonEditar: {
   borderRadius: 5,
   marginBottom: 15,
   overflow: 'hidden',
-},
+  backgroundColor: 'white',
+  },
 });
 
 export default styles;

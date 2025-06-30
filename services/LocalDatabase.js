@@ -148,7 +148,6 @@ if (!tableCheck || tableCheck.length === 0) {
         modelo TEXT NOT NULL,
         observacao TEXT,
         funcionario_id TEXT,
-        funcao_veiculo_id INTEGER,
         capacidade_kg REAL CHECK (capacidade_kg > 0),
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
