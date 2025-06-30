@@ -955,6 +955,51 @@ buttonEditar: {
   overflow: 'hidden',
   backgroundColor: 'white',
   },
+
+modalContainer: {
+  flex: 1,
+  backgroundColor: '#fff',
+  padding: 20,
+},
+modalTitle: {
+  fontSize: 20,
+  fontWeight: 'bold',
+  color: '#043b57',
+  marginBottom: 20,
+  textAlign: 'center',
+},
+modalText: {
+  fontSize: 16,
+  marginBottom: 10,
+  color: '#333',
+},
+radioGroup: {
+  flexDirection: 'row',
+  flexWrap: 'wrap',
+  gap: 8,
+  marginBottom: 15,
+},
+radioButton: {
+  borderWidth: 1,
+  borderColor: '#043b57',
+  borderRadius: 20,
+  paddingVertical: 8,
+  paddingHorizontal: 16,
+  backgroundColor: 'white',
+},
+radioButtonSelected: {
+  backgroundColor: '#043b57',
+},
+radioText: {
+  color: '#043b57',
+  fontWeight: 'bold',
+  fontSize: 14,
+},
+radioTextSelected: {
+  color: 'white',
+  fontWeight: 'bold',
+  fontSize: 14,
+},
 });
 
 export default styles;

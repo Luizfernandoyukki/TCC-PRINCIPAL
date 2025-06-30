@@ -3,7 +3,6 @@ import NetInfo from '@react-native-community/netinfo';
 import { useEffect, useState } from 'react';
 import {
   Alert,
-  Image,
   KeyboardAvoidingView,
   ScrollView,
   StatusBar,
@@ -18,21 +17,19 @@ import { databaseService } from '../../../services/localDatabase';
 
 export default function CadastroEntregas({ navigation, route }) {
   const funcionarioLogadoId = route?.params?.funcionario_id;
-if (!funcionarioLogadoId) {
-  Alert.alert('Erro', 'Usuário não identificado');
-  return;
-}
+  const [funcionarios, setFuncionarios] = useState([]);
   const [formData, setFormData] = useState({
     estoque_id: null,
     quantidade: '',
     cliente_id: null,
-    veiculo_id: null, // opcional
+    veiculo_id: null,
     data_saida: new Date(),
     status: 'preparacao',
     observacao: '',
     valor_unitario: '',
     valor_total: '',
-    tipo_pagamento: 'dinheiro'
+    tipo_pagamento: 'dinheiro',
+    funcionario_id: funcionarioLogadoId || null,
   });
   const [loading, setLoading] = useState(false);
   const [estoques, setEstoques] = useState([]);
@@ -45,25 +42,20 @@ if (!funcionarioLogadoId) {
     async function fetchData() {
       setLoading(true);
       try {
-        const { data: estoquesData, error: eError } = await supabase
-          .from('estoque')
-          .select('id, nome, quantidade, peso')
-          .gt('quantidade', 0)
-          .order('nome', { ascending: true });
-        const { data: clientesData, error: cError } = await supabase
-          .from('cliente')
-          .select('id, nome')
-          .order('nome', { ascending: true });
-        const { data: veiculosData, error: vError } = await supabase
-          .from('veiculo')
-          .select('id, placa, modelo, capacidade_kg')
-          .order('placa', { ascending: true });
+        const [estoquesData, clientesData, veiculosData, funcionariosData] = await Promise.all([
+          supabase.from('estoque').select('id, nome, quantidade, peso').gt('quantidade', 0).order('nome'),
+          supabase.from('cliente').select('id, nome').order('nome'),
+          supabase.from('veiculo').select('id, placa, modelo, capacidade_kg').order('placa'),
+          supabase.from('funcionario').select('id, nome').order('nome'),
+        ]);
 
-        if (eError || cError || vError) throw eError || cError || vError;
+        if (estoquesData.error || clientesData.error || veiculosData.error || funcionariosData.error)
+          throw estoquesData.error || clientesData.error || veiculosData.error || funcionariosData.error;
 
-        setEstoques(estoquesData || []);
-        setClientes(clientesData || []);
-        setVeiculos(veiculosData || []);
+        setEstoques(estoquesData.data || []);
+        setClientes(clientesData.data || []);
+        setVeiculos(veiculosData.data || []);
+        setFuncionarios(funcionariosData.data || []);
       } catch {
         Alert.alert('Erro', 'Não foi possível carregar dados para seleção');
       } finally {
@@ -78,7 +70,8 @@ if (!funcionarioLogadoId) {
     if (!formData.estoque_id) newErrors.estoque_id = 'Selecione um item do estoque';
     if (!formData.quantidade || isNaN(formData.quantidade) || parseInt(formData.quantidade) <= 0) newErrors.quantidade = 'Quantidade inválida';
     if (!formData.cliente_id) newErrors.cliente_id = 'Selecione um cliente';
-    if (formData.valor_unitario === '' || isNaN(formData.valor_unitario) || parseFloat(formData.valor_unitario) <= 0) newErrors.valor_unitario = 'Informe um valor unitário válido';
+    if (!formData.valor_unitario || isNaN(formData.valor_unitario) || parseFloat(formData.valor_unitario) <= 0) newErrors.valor_unitario = 'Informe um valor unitário válido';
+    if (!formData.funcionario_id) newErrors.funcionario_id = 'Selecione um responsável';
 
     const estoqueSelecionado = estoques.find(e => e.id === formData.estoque_id);
     if (estoqueSelecionado && parseInt(formData.quantidade) > estoqueSelecionado.quantidade) {
@@ -97,106 +90,6 @@ if (!funcionarioLogadoId) {
       setFormData(f => ({ ...f, valor_total: '' }));
     }
   }, [formData.quantidade, formData.valor_unitario]);
-
-  function onChangeDataSaida(event, selectedDate) {
-    setShowDatePicker(false);
-    if (event.type === 'dismissed') return; // usuário cancelou o picker
-    if (selectedDate) {
-      // Mantém só a data, zera hora:min:seg
-      const onlyDate = new Date(selectedDate);
-      onlyDate.setHours(0, 0, 0, 0);
-      setFormData(f => ({ ...f, data_saida: onlyDate }));
-    }
-  }
-
-  async function handleSubmit() {
-    if (!validateForm()) return;
-
-    const estoqueSelecionado = estoques.find(e => e.id === formData.estoque_id);
-    const veiculoSelecionado = veiculos.find(v => v.id === formData.veiculo_id);
-
-    const pesoTotal = estoqueSelecionado?.peso * parseInt(formData.quantidade);
-
-    if (veiculoSelecionado && pesoTotal > veiculoSelecionado.capacidade_kg) {
-      const continuar = await new Promise(resolve => {
-        Alert.alert(
-          'Aviso',
-          `Peso total (${pesoTotal.toFixed(2)}kg) excede a capacidade do veículo (${veiculoSelecionado.capacidade_kg}kg). Deseja continuar?`,
-          [
-            { text: 'Cancelar', onPress: () => resolve(false), style: 'cancel' },
-            { text: 'Continuar', onPress: () => resolve(true) },
-          ],
-          { cancelable: false }
-        );
-      });
-      if (!continuar) return;
-    }
-
-    if (estoqueSelecionado && parseInt(formData.quantidade) > estoqueSelecionado.quantidade) {
-      const aceitarGerar = await new Promise(resolve => {
-        Alert.alert(
-          'Quantidade insuficiente',
-          `A quantidade solicitada (${formData.quantidade}) é maior que o estoque disponível (${estoqueSelecionado.quantidade}). Deseja gerar a quantidade necessária automaticamente?`,
-          [
-            { text: 'Não', onPress: () => resolve(false), style: 'cancel' },
-            { text: 'Sim', onPress: () => resolve(true) },
-          ],
-          { cancelable: false }
-        );
-      });
-      if (aceitarGerar) {
-        const novaObservacao = (formData.observacao ? formData.observacao + '\n' : '') +
-          `Quantidade gerada automaticamente para suprir a diferença (${parseInt(formData.quantidade) - estoqueSelecionado.quantidade}).`;
-        setFormData(f => ({
-          ...f,
-          quantidade: estoqueSelecionado.quantidade.toString(),
-          observacao: novaObservacao,
-        }));
-      } else {
-        Alert.alert('Operação cancelada', 'A quantidade não foi ajustada e a entrega não foi registrada.');
-        return;
-      }
-    }
-
-    setLoading(true);
-    try {
-      // Data_entrega gerada automaticamente: data_saida + 1 dia, também só data
-      const dataEntregaGerada = new Date(formData.data_saida);
-      dataEntregaGerada.setDate(dataEntregaGerada.getDate() + 1);
-      dataEntregaGerada.setHours(0, 0, 0, 0);
-
-      const entregaData = {
-        estoque_id: formData.estoque_id,
-        quantidade: parseInt(formData.quantidade),
-        cliente_id: formData.cliente_id,
-        veiculo_id: formData.veiculo_id || null,
-        funcionario_id: funcionarioLogadoId,
-        data_saida: formData.data_saida.toISOString().split('T')[0], // só data no formato YYYY-MM-DD
-        data_entrega: dataEntregaGerada.toISOString().split('T')[0],
-        status: formData.status,
-        observacao: formData.observacao || null,
-        valor_unitario: parseFloat(formData.valor_unitario),
-        valor_total: parseFloat(formData.valor_total),
-        tipo_pagamento: formData.tipo_pagamento || 'dinheiro'
-      };
-
-      const networkState = await NetInfo.fetch();
-
-      if (networkState.isConnected) {
-        const { error } = await supabase.from('entrega').insert([entregaData]);
-        if (error) throw error;
-      } else {
-        await databaseService.insertWithUUID('entrega', entregaData);
-      }
-
-      Alert.alert('Sucesso', 'Entrega registrada com sucesso!');
-      navigation.goBack();
-    } catch (error) {
-      Alert.alert('Erro', error.message || 'Erro ao registrar entrega');
-    } finally {
-      setLoading(false);
-    }
-  }
 
   function renderPicker(items, selectedId, fieldName, label) {
     return (
@@ -220,21 +113,63 @@ if (!funcionarioLogadoId) {
     );
   }
 
+  async function handleSubmit() {
+    if (!validateForm()) return;
+    const estoqueSelecionado = estoques.find(e => e.id === formData.estoque_id);
+    const veiculoSelecionado = veiculos.find(v => v.id === formData.veiculo_id);
+
+    const pesoTotal = estoqueSelecionado?.peso * parseInt(formData.quantidade);
+
+    if (veiculoSelecionado && pesoTotal > veiculoSelecionado.capacidade_kg) {
+      const continuar = await new Promise(resolve => {
+        Alert.alert('Aviso', `Peso total (${pesoTotal.toFixed(2)}kg) excede a capacidade do veículo (${veiculoSelecionado.capacidade_kg}kg). Deseja continuar?`, [
+          { text: 'Cancelar', onPress: () => resolve(false), style: 'cancel' },
+          { text: 'Continuar', onPress: () => resolve(true) },
+        ]);
+      });
+      if (!continuar) return;
+    }
+
+    const dataEntregaGerada = new Date(formData.data_saida);
+    dataEntregaGerada.setDate(dataEntregaGerada.getDate() + 1);
+    dataEntregaGerada.setHours(0, 0, 0, 0);
+
+    const entregaData = {
+      estoque_id: formData.estoque_id,
+      quantidade: parseInt(formData.quantidade),
+      cliente_id: formData.cliente_id,
+      veiculo_id: formData.veiculo_id || null,
+      funcionario_id: formData.funcionario_id,
+      data_saida: formData.data_saida.toISOString().split('T')[0],
+      data_entrega: dataEntregaGerada.toISOString().split('T')[0],
+      status: formData.status,
+      observacao: formData.observacao || null,
+      valor_unitario: parseFloat(formData.valor_unitario),
+      valor_total: parseFloat(formData.valor_total),
+      tipo_pagamento: formData.tipo_pagamento,
+    };
+
+    setLoading(true);
+    try {
+      const networkState = await NetInfo.fetch();
+      if (networkState.isConnected) {
+        const { error } = await supabase.from('entrega').insert([entregaData]);
+        if (error) throw error;
+      } else {
+        await databaseService.insertWithUUID('entrega', entregaData);
+      }
+      Alert.alert('Sucesso', 'Entrega registrada com sucesso!');
+      navigation.goBack();
+    } catch (error) {
+      Alert.alert('Erro', error.message || 'Erro ao registrar entrega');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
-   <KeyboardAvoidingView style={styles.container}
-     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-           keyboardVerticalOffset={100}>
+    <KeyboardAvoidingView style={styles.container} behavior="padding" keyboardVerticalOffset={100}>
       <StatusBar backgroundColor="#043b57" barStyle="light-content" />
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Image source={require('../../../Assets/logo.png')} style={styles.logo} resizeMode="contain" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('Error')}>
-            <Image source={require('../../../Assets/alerta.png')} style={styles.alerta} resizeMode="contain" />
-          </TouchableOpacity>
-        </View>
-      </View>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>REGISTRO DE ENTREGAS</Text>
@@ -251,16 +186,11 @@ if (!funcionarioLogadoId) {
           {errors.quantidade && <Text style={styles.errorText}>{errors.quantidade}</Text>}
 
           {renderPicker(clientes, formData.cliente_id, 'cliente_id', 'Cliente')}
-
           {renderPicker(veiculos, formData.veiculo_id, 'veiculo_id', 'Veículo (Opcional)')}
+          {renderPicker(funcionarios, formData.funcionario_id, 'funcionario_id', 'Responsável pela entrega')}
 
-          <TouchableOpacity
-            onPress={() => setShowDatePicker(true)}
-            style={styles.dateInput}
-          >
-            <Text style={styles.dateText}>
-              Data de Saída: {formData.data_saida.toLocaleDateString()}
-            </Text>
+          <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.dateInput}>
+            <Text style={styles.dateText}>Data de Saída: {formData.data_saida.toLocaleDateString()}</Text>
           </TouchableOpacity>
 
           {showDatePicker && (
@@ -268,19 +198,16 @@ if (!funcionarioLogadoId) {
               value={formData.data_saida}
               mode="date"
               display="default"
-              onChange={onChangeDataSaida}
-              maximumDate={new Date()} // opcional, por exemplo: não permite datas futuras
+              onChange={(e, selectedDate) => {
+                if (e.type !== 'dismissed' && selectedDate) {
+                  const onlyDate = new Date(selectedDate);
+                  onlyDate.setHours(0, 0, 0, 0);
+                  setFormData(f => ({ ...f, data_saida: onlyDate }));
+                }
+                setShowDatePicker(false);
+              }}
             />
           )}
-
-          <TextInput
-            placeholder="Observações (Opcional)"
-            value={formData.observacao}
-            onChangeText={text => setFormData({ ...formData, observacao: text })}
-            style={styles.input}
-            multiline
-            numberOfLines={3}
-          />
 
           <TextInput
             placeholder="Valor Unitário*"
@@ -292,26 +219,20 @@ if (!funcionarioLogadoId) {
           {errors.valor_unitario && <Text style={styles.errorText}>{errors.valor_unitario}</Text>}
 
           <TextInput
-            placeholder="Valor Total (Calculado automaticamente)"
+            placeholder="Valor Total"
             value={formData.valor_total}
             editable={false}
             style={styles.input}
           />
 
-          <Text style={styles.label}>Tipo de Pagamento</Text>
-          <View style={styles.radioGroup}>
-            {['dinheiro', 'boleto', 'cheque', 'vale', 'pix', 'cartao'].map(tipo => (
-              <TouchableOpacity
-                key={tipo}
-                style={[styles.radioButton, formData.tipo_pagamento === tipo && styles.radioButtonSelected]}
-                onPress={() => setFormData({ ...formData, tipo_pagamento: tipo })}
-              >
-                <Text style={formData.tipo_pagamento === tipo ? styles.radioTextSelected : styles.radioText}>
-                  {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <TextInput
+            placeholder="Observações"
+            value={formData.observacao}
+            onChangeText={text => setFormData({ ...formData, observacao: text })}
+            style={styles.input}
+            multiline
+            numberOfLines={3}
+          />
 
           <TouchableOpacity
             style={styles.registerButton}
@@ -320,13 +241,11 @@ if (!funcionarioLogadoId) {
           >
             <Text style={styles.buttonLabel}>{loading ? 'REGISTRANDO...' : 'REGISTRAR ENTREGA'}</Text>
           </TouchableOpacity>
-
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
