@@ -1,5 +1,6 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import NetInfo from '@react-native-community/netinfo';
+import { Picker } from '@react-native-picker/picker';
 import { useEffect, useState } from 'react';
 import {
   Alert,
@@ -15,6 +16,15 @@ import {
 import { supabase } from '../../../contexts/supabaseClient';
 import { databaseService } from '../../../services/localDatabase';
 
+const TIPOS_PAGAMENTO = [
+  { id: 'dinheiro', nome: 'Dinheiro' },
+  { id: 'cheque', nome: 'Cheque' },
+  { id: 'vale', nome: 'Vale' },
+  { id: 'pix', nome: 'PIX' },
+  { id: 'cartao', nome: 'Cartão' },
+  { id: 'boleto', nome: 'Boleto' }
+];
+
 export default function CadastroEntregas({ navigation, route }) {
   const funcionarioLogadoId = route?.params?.funcionario_id;
   const [funcionarios, setFuncionarios] = useState([]);
@@ -28,6 +38,7 @@ export default function CadastroEntregas({ navigation, route }) {
     observacao: '',
     valor_unitario: '',
     valor_total: '',
+    nota: 0, // Inicializa como 0 (false)
     tipo_pagamento: 'dinheiro',
     funcionario_id: funcionarioLogadoId || null,
   });
@@ -91,24 +102,71 @@ export default function CadastroEntregas({ navigation, route }) {
     }
   }, [formData.quantidade, formData.valor_unitario]);
 
-  function renderPicker(items, selectedId, fieldName, label) {
+  function renderStyledPicker(items, selectedId, fieldName, label) {
     return (
       <>
         <Text style={styles.label}>{label}*</Text>
         <View style={styles.pickerContainer}>
+          <Picker
+            selectedValue={selectedId}
+            onValueChange={(value) => setFormData({ ...formData, [fieldName]: value })}
+            style={styles.picker}
+          >
+            <Picker.Item label={`Selecione ${label.toLowerCase()}`} value={null} />
+            {items.map(item => (
+              <Picker.Item 
+                key={item.id} 
+                label={item.nome || `${item.placa} - ${item.modelo}`} 
+                value={item.id} 
+              />
+            ))}
+          </Picker>
+        </View>
+        {errors[fieldName] && <Text style={styles.errorText}>{errors[fieldName]}</Text>}
+      </>
+    );
+  }
+
+  function renderRadioGroup(items, selectedValue, fieldName, label) {
+    return (
+      <>
+        <Text style={styles.label}>{label}*</Text>
+        <View style={styles.radioGroup}>
           {items.map(item => (
             <TouchableOpacity
               key={item.id}
-              style={[styles.pickerOption, selectedId === item.id && styles.pickerOptionSelected]}
+              style={[
+                styles.radioButton,
+                selectedValue === item.id && styles.radioButtonSelected
+              ]}
               onPress={() => setFormData({ ...formData, [fieldName]: item.id })}
             >
-              <Text style={selectedId === item.id ? styles.pickerTextSelected : styles.pickerText}>
-                {item.nome || `${item.placa} - ${item.modelo}`}
+              <Text style={selectedValue === item.id ? styles.radioTextSelected : styles.radioText}>
+                {item.nome}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
-        {errors[fieldName] && <Text style={styles.errorText}>{errors[fieldName]}</Text>}
+      </>
+    );
+  }
+
+  function renderNotaCheckbox() {
+    return (
+      <>
+        <Text style={styles.label}>Nota Fiscal</Text>
+        <View style={styles.checkboxContainer}>
+          <TouchableOpacity
+            style={[styles.checkbox, formData.nota === 1 && styles.checkboxSelected]}
+            onPress={() => setFormData({ 
+              ...formData, 
+              nota: formData.nota === 1 ? 0 : 1 
+            })}
+          >
+            {formData.nota === 1 && <Text style={styles.checkboxIcon}>✓</Text>}
+          </TouchableOpacity>
+          <Text style={styles.checkboxLabel}>Esta entrega possui nota fiscal</Text>
+        </View>
       </>
     );
   }
@@ -147,6 +205,7 @@ export default function CadastroEntregas({ navigation, route }) {
       valor_unitario: parseFloat(formData.valor_unitario),
       valor_total: parseFloat(formData.valor_total),
       tipo_pagamento: formData.tipo_pagamento,
+      nota: formData.nota, // 0 ou 1 conforme schema
     };
 
     setLoading(true);
@@ -174,7 +233,7 @@ export default function CadastroEntregas({ navigation, route }) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>REGISTRO DE ENTREGAS</Text>
 
-          {renderPicker(estoques, formData.estoque_id, 'estoque_id', 'Item do Estoque')}
+          {renderStyledPicker(estoques, formData.estoque_id, 'estoque_id', 'Item do Estoque')}
 
           <TextInput
             placeholder="Quantidade*"
@@ -185,9 +244,9 @@ export default function CadastroEntregas({ navigation, route }) {
           />
           {errors.quantidade && <Text style={styles.errorText}>{errors.quantidade}</Text>}
 
-          {renderPicker(clientes, formData.cliente_id, 'cliente_id', 'Cliente')}
-          {renderPicker(veiculos, formData.veiculo_id, 'veiculo_id', 'Veículo (Opcional)')}
-          {renderPicker(funcionarios, formData.funcionario_id, 'funcionario_id', 'Responsável pela entrega')}
+          {renderStyledPicker(clientes, formData.cliente_id, 'cliente_id', 'Cliente')}
+          {renderStyledPicker(veiculos, formData.veiculo_id, 'veiculo_id', 'Veículo')}
+          {renderStyledPicker(funcionarios, formData.funcionario_id, 'funcionario_id', 'Responsável')}
 
           <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.dateInput}>
             <Text style={styles.dateText}>Data de Saída: {formData.data_saida.toLocaleDateString()}</Text>
@@ -225,6 +284,10 @@ export default function CadastroEntregas({ navigation, route }) {
             style={styles.input}
           />
 
+          {renderRadioGroup(TIPOS_PAGAMENTO, formData.tipo_pagamento, 'tipo_pagamento', 'Tipo de Pagamento')}
+          
+          {renderNotaCheckbox()}
+
           <TextInput
             placeholder="Observações"
             value={formData.observacao}
@@ -246,6 +309,7 @@ export default function CadastroEntregas({ navigation, route }) {
     </KeyboardAvoidingView>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -309,25 +373,16 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   pickerContainer: {
-    marginBottom: 15,
-  },
-  pickerOption: {
-    padding: 12,
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 5,
-    marginBottom: 8,
-    backgroundColor: '#f9f9f9',
+    marginBottom: 15,
+    backgroundColor: 'white',
+    overflow: 'hidden',
   },
-  pickerOptionSelected: {
-    backgroundColor: '#043b57',
-    borderColor: '#043b57',
-  },
-  pickerText: {
-    color: '#333',
-  },
-  pickerTextSelected: {
-    color: 'white',
+  picker: {
+    height: 50,
+    color: '#043b57',
   },
   dateInput: {
     backgroundColor: 'white',
@@ -373,5 +428,30 @@ const styles = StyleSheet.create({
   },
   radioTextSelected: {
     color: 'white',
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderWidth: 1,
+    borderColor: '#043b57',
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  checkboxSelected: {
+    backgroundColor: '#043b57',
+  },
+  checkboxIcon: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  checkboxLabel: {
+    color: '#043b57',
   },
 });

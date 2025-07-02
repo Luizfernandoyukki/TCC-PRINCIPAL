@@ -255,7 +255,7 @@ export default function FuncionariosScreen({ navigation }) {
                   <Text>Cidade: {modalFuncionario.endereco.cidade}/{modalFuncionario.endereco.uf}</Text>
                 </>
               )}
-              <TouchableOpacity style={styles.button} onPress={closeModal}>
+              <TouchableOpacity style={styles.modalButtonSair} onPress={closeModal}>
                 <Text style={styles.buttonText}>Fechar</Text>
               </TouchableOpacity>
             </>

@@ -107,7 +107,7 @@ export default function ClientesScreen({ navigation }) {
         case 'cnpj': return cliente.cnpj?.toLowerCase().includes(lowerSearch);
         case 'cidade': return cliente.endereco?.cidade?.toLowerCase().includes(lowerSearch);
         case 'telefone': return cliente.telefone?.numero?.toLowerCase().includes(lowerSearch);
-        case 'email': return cliente.email?.endereco?.toLowerCase().includes(lowerSearch);
+        case 'email': return cliente.email?.email?.toLowerCase().includes(lowerSearch);
         default: return false;
       }
     });
@@ -145,13 +145,28 @@ export default function ClientesScreen({ navigation }) {
   const enderecoFormatado = item.endereco
     ? `${item.endereco.rua}, ${item.endereco.numero} - ${item.endereco.bairro}, ${item.endereco.cidade}/${item.endereco.uf}`
     : '-';
-
+const traduzirDiasEntrega = (diasString) => {
+  if (!diasString) return '-';
+  
+  const diasMap = {
+    'seg': 'Segunda',
+    'ter': 'Terça',
+    'qua': 'Quarta',
+    'qui': 'Quinta',
+    'sex': 'Sexta',
+    'sab': 'Sábado',
+    'dom': 'Domingo'
+  };
+  
+  return diasString.split(',')
+    .map(dia => diasMap[dia.trim().toLowerCase()] || dia.trim())
+    .join(', ');
+};
   return (
     <View style={styles.itemContainer}>
       <TouchableOpacity style={styles.itemBox} onPress={() => setExpandedId(expandedId === item.id ? null : item.id)}>
         <View style={styles.itemHeader}>
           <Text style={styles.itemTitle}>{item.nome}</Text>
-          {/* Removi o botão Excluir daqui */}
         </View>
 
         {expandedId === item.id && (
@@ -159,20 +174,20 @@ export default function ClientesScreen({ navigation }) {
             <Text style={styles.itemDetail}>Tipo: {item.tipo}</Text>
             <Text style={styles.itemDetail}>CPF/CNPJ: {cpfCnpj}</Text>
             <Text style={styles.itemDetail}>Telefone: {item.telefone?.numero || '-'}</Text>
-            <Text style={styles.itemDetail}>Email: {item.email?.endereco || '-'}</Text>
+            <Text style={styles.itemDetail}>Email: {item.email?.email || '-'}</Text>
             <Text style={styles.itemDetail}>Endereço: {enderecoFormatado}</Text>
             {renderMapa(item.endereco)}
 
             <View style={styles.actionButtons}>
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: '#2345AF' }]}
-                onPress={() => navigation.navigate('Entregas')}
+                style={[styles.actionButton, styles.editButton]}
+                onPress={() => navigation.navigate('EditarCliente', { cliente: item })}
               >
-                <Text style={styles.actionButtonText}>Entregas</Text>
+                <Text style={styles.actionButtonText}>Editar</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: '#10b981' }]}
+                style={[styles.actionButton, { backgroundColor: 'blue' }]}
                 onPress={() => navigation.navigate('Pedidos')}
               >
                 <Text style={styles.actionButtonText}>Pedidos</Text>
@@ -220,7 +235,24 @@ export default function ClientesScreen({ navigation }) {
       }
     ]);
   };
-
+const traduzirDiasEntrega = (diasArray) => {
+  if (!diasArray || !Array.isArray(diasArray) || diasArray.length === 0) return '-';
+  
+  const diasMap = {
+    0: 'Seg',
+    1: 'Ter',
+    2: 'Qua',
+    3: 'Qui',
+    4: 'Sex',
+    5: 'Sáb'
+  };
+  
+  // Remove duplicados, ordena e mapeia para abreviações
+  return [...new Set(diasArray)]
+    .sort((a, b) => a - b)
+    .map(num => diasMap[num] || num)
+    .join(', ');
+};
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#043b57" barStyle="light-content" />
@@ -352,10 +384,12 @@ export default function ClientesScreen({ navigation }) {
               <Text>CPF: {modalCliente.cpf || '-'}</Text>
               <Text>CNPJ: {modalCliente.cnpj || '-'}</Text>
               <Text>Telefone: {modalCliente.telefone?.numero || '-'}</Text>
-              <Text>Email: {modalCliente.email?.endereco || '-'}</Text>
+              <Text>Email: {modalCliente.email?.email || '-'}</Text>
               <Text>Endereço: {modalCliente.endereco ? `${modalCliente.endereco.rua}, ${modalCliente.endereco.numero}` : '-'}</Text>
+              <Text>Dias de Entrega: {traduzirDiasEntrega(modalCliente.dias_entrega)}</Text>
+              <Text>Status: {modalCliente.status}</Text>
               {renderMapa(modalCliente.endereco)}
-              <TouchableOpacity onPress={closeModal} style={styles.button}>
+              <TouchableOpacity onPress={closeModal} style={styles.modalButtonSair}>
                 <Text style={styles.buttonText}>Fechar</Text>
               </TouchableOpacity>
             </>

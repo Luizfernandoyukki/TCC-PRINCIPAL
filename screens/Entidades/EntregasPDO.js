@@ -1,324 +1,529 @@
+// EntregasVisualizacaoScreen.js
+import NetInfo from '@react-native-community/netinfo';
 import { useEffect, useState } from 'react';
-import { Alert, FlatList, Image, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Alert, FlatList, Image, Modal, Pressable,
+  StatusBar, Text, TextInput, TouchableOpacity, View
+} from 'react-native';
 import { supabase } from '../../contexts/supabaseClient';
-import { databaseService } from '../../services/localDatabase'; // Adicionado para operações locais
+import { databaseService } from '../../services/localDatabase';
 import styles from '../../styles/EstilosdeEntidade';
 
-export default function EntregasScreen({ navigation }) {
+const FILTER_OPTIONS = [
+  { key: 'cliente', label: 'Cliente' },
+  { key: 'estoque', label: 'Produto' },
+  { key: 'data_saida', label: 'Data de Saída' },
+  { key: 'status', label: 'Status' },
+  { key: 'veiculo', label: 'Veículo' },
+  { key: 'funcionario', label: 'Responsável' }
+];
+
+const STATUS_OPTIONS = [
+  { key: 'preparacao', label: 'Em preparação' },
+  { key: 'a_caminho', label: 'A caminho' },
+  { key: 'entregue', label: 'Entregue' },
+  { key: 'devolucao_parcial', label: 'Devolução parcial' },
+  { key: 'rejeitada', label: 'Rejeitada' }
+];
+
+export default function EntregasVisualizacaoScreen({ navigation }) {
   const [entregas, setEntregas] = useState([]);
+  const [filteredEntregas, setFilteredEntregas] = useState([]);
   const [expandedId, setExpandedId] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalEntrega, setModalEntrega] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [useLocalData, setUseLocalData] = useState(false); // Estado para alternar entre local/Supabase
-const [filterText, setFilterText] = useState('');
+  const [search, setSearch] = useState('');
+  const [filterType, setFilterType] = useState('cliente');
+  const [filterMenuVisible, setFilterMenuVisible] = useState(false);
+  const [statusModalVisible, setStatusModalVisible] = useState(false);
+  const [selectedEntrega, setSelectedEntrega] = useState(null);
+  const [newStatus, setNewStatus] = useState('');
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [observacaoStatus, setObservacaoStatus] = useState('');
 
   useEffect(() => {
     fetchEntregas();
-  }, [useLocalData]);
+  }, []);
+
+  useEffect(() => {
+    handleFilter();
+  }, [search, filterType, entregas]);
 
   const fetchEntregas = async () => {
     setLoading(true);
     try {
-      if (useLocalData) {
-        // Versão local usando o mesmo padrão das outras telas
-        const entregasData = await databaseService.select('entrega');
-        const estoques = await databaseService.select('estoque');
-        const clientes = await databaseService.select('cliente');
-        const veiculos = await databaseService.select('veiculo');
-        const funcionarios = await databaseService.select('funcionario');
+      const netState = await NetInfo.fetch();
 
-        const data = entregasData.map(entrega => ({
-          ...entrega,
-          estoque: estoques.find(e => e.id === entrega.estoque_id) || {},
-          cliente: clientes.find(c => c.id === entrega.cliente_id) || {},
-          veiculo: veiculos.find(v => v.id === entrega.veiculo_id) || {},
-          funcionario: funcionarios.find(f => f.id === entrega.funcionario_id) || {}
-        }));
-
-        setEntregas(data || []);
-      } else {
-        // Versão original com Supabase
+      if (netState.isConnected) {
         const { data, error } = await supabase
           .from('entrega')
           .select(`
-            id,
-            quantidade,
-            quantidade_devolvida,
-            status,
-            nota,
-            data_saida,
-            data_entrega,
-            motivo_devolucao,
-            observacao,
-            estoque:estoque_id(nome, numero_serie),
-            cliente:cliente_id(nome),
-            veiculo:veiculo_id(placa, modelo),
-            funcionario:funcionario_id(nome)
+            *,
+            estoque:estoque_id(*),
+            cliente:cliente_id(*),
+            veiculo:veiculo_id(*),
+            funcionario:funcionario_id(*)
           `)
           .order('data_saida', { ascending: false });
 
         if (error) throw error;
-        setEntregas(data || []);
+        setEntregas(data);
+        setFilteredEntregas(data);
+      } else {
+        const entregasResult = await databaseService.select('entrega');
+        const estoquesResult = await databaseService.select('estoque');
+        const clientesResult = await databaseService.select('cliente');
+        const veiculosResult = await databaseService.select('veiculo');
+        const funcionariosResult = await databaseService.select('funcionario');
+
+        const entregasCompletas = entregasResult.data.map(entrega => ({
+          ...entrega,
+          estoque: estoquesResult.data.find(e => e.id === entrega.estoque_id) || {},
+          cliente: clientesResult.data.find(c => c.id === entrega.cliente_id) || {},
+          veiculo: veiculosResult.data.find(v => v.id === entrega.veiculo_id) || {},
+          funcionario: funcionariosResult.data.find(f => f.id === entrega.funcionario_id) || {}
+        }));
+
+        setEntregas(entregasCompletas);
+        setFilteredEntregas(entregasCompletas);
       }
     } catch (error) {
-      Alert.alert('Erro', error.message);
-      // Se falhar com Supabase, tenta com dados locais
-      if (!useLocalData) setUseLocalData(true);
+      Alert.alert('Erro', 'Falha ao carregar entregas: ' + error.message);
     } finally {
       setLoading(false);
     }
   };
-  const toggleExpand = (id) => {
-    setExpandedId(expandedId === id ? null : id);
+
+  const handleFilter = () => {
+    if (!search.trim()) return setFilteredEntregas(entregas);
+    const lowerSearch = search.toLowerCase();
+    const filtered = entregas.filter(entrega => {
+      switch (filterType) {
+        case 'cliente': 
+          return entrega.cliente?.nome?.toLowerCase().includes(lowerSearch);
+        case 'estoque': 
+          return entrega.estoque?.nome?.toLowerCase().includes(lowerSearch);
+        case 'data_saida': 
+          return entrega.data_saida?.toLowerCase().includes(lowerSearch);
+        case 'status': 
+          return entrega.status?.toLowerCase().includes(lowerSearch);
+        case 'veiculo': 
+          return entrega.veiculo?.modelo?.toLowerCase().includes(lowerSearch) || 
+                 entrega.veiculo?.placa?.toLowerCase().includes(lowerSearch);
+        case 'funcionario': 
+          return entrega.funcionario?.nome?.toLowerCase().includes(lowerSearch);
+        default: 
+          return true;
+      }
+    });
+    setFilteredEntregas(filtered);
   };
 
   const renderStatus = (status) => {
-    const statusStyles = {
-      preparacao: { color: '#FFA500', text: 'Em preparação' },
-      a_caminho: { color: '#2196F3', text: 'A caminho' },
-      entregue: { color: '#4CAF50', text: 'Entregue' },
-      devolucao_parcial: { color: '#9C27B0', text: 'Devolução parcial' },
-      rejeitada: { color: '#F44336', text: 'Rejeitada' }
+    const statusMap = {
+      preparacao: 'Em preparação',
+      a_caminho: 'A caminho',
+      entregue: 'Entregue',
+      devolucao_parcial: 'Devolução parcial',
+      rejeitada: 'Rejeitada'
     };
-    
-    return (
-      <Text style={[styles.itemDetail, { color: statusStyles[status].color }]}>
-        Status: {statusStyles[status].text}
-      </Text>
-    );
+    return <Text style={styles.itemDetail}>Status: {statusMap[status] || status}</Text>;
   };
 
-  const renderNotaFiscal = (nota) => {
-    return nota ? (
-      <Text style={[styles.itemDetail, styles.checkIcon]}>✓ Com nota fiscal</Text>
-    ) : (
-      <Text style={[styles.itemDetail, styles.xIcon]}>✗ Sem nota fiscal</Text>
-    );
+  const openModal = (entrega) => {
+    setModalEntrega(entrega);
+    setModalVisible(true);
   };
+
+  const closeModal = () => {
+    setModalVisible(false);
+    setModalEntrega(null);
+  };
+
+  const openStatusModal = (entrega) => {
+  setSelectedEntrega(entrega);
+  setNewStatus(entrega.status);
+  setObservacaoStatus('');
+  setStatusModalVisible(true);
+};
+
+  const updateStatus = async () => {
+  if (!newStatus) {
+    Alert.alert('Erro', 'Selecione um status válido');
+    return;
+  }
+
+  // Validação para devolução parcial
+  if (newStatus === 'devolucao_parcial') {
+    if (quantidadeDevolvida <= 0 || quantidadeDevolvida > selectedEntrega.quantidade) {
+      Alert.alert('Erro', 'Quantidade devolvida inválida');
+      return;
+    }
+  }
+
+  setStatusLoading(true);
+  try {
+    const updateData = { 
+      status: newStatus,
+      observacao: observacaoStatus || null
+    };
+
+    // Adiciona campos específicos para devolução parcial
+    if (newStatus === 'devolucao_parcial') {
+      updateData.quantidade_devolvida = quantidadeDevolvida;
+      updateData.motivo_devolucao = observacaoStatus || 'Devolução parcial';
+    }
+
+    if (newStatus === 'entregue') {
+      updateData.data_entrega = new Date().toISOString();
+    }
+
+    const netState = await NetInfo.fetch();
+    
+    if (netState.isConnected) {
+      const { error } = await supabase
+        .from('entrega')
+        .update(updateData)
+        .eq('id', selectedEntrega.id);
+      
+      if (error) throw error;
+    } else {
+      // Para o SQLite local
+      await databaseService.transaction([
+        {
+          sql: `UPDATE entrega SET 
+                status = ?, 
+                observacao = ?,
+                ${newStatus === 'devolucao_parcial' ? 'quantidade_devolvida = ?, motivo_devolucao = ?' : ''}
+                ${newStatus === 'entregue' ? 'data_entrega = ?' : ''}
+                WHERE id = ?`,
+          params: [
+            newStatus,
+            observacaoStatus || null,
+            ...(newStatus === 'entregue' ? [new Date().toISOString()] : []),
+            selectedEntrega.id
+          ].filter(p => p !== undefined)
+        }
+      ]);
+    }
+
+    Alert.alert('Sucesso', 'Status atualizado com sucesso!');
+    setStatusModalVisible(false);
+    fetchEntregas();
+  } catch (error) {
+    Alert.alert('Erro', 'Falha ao atualizar status: ' + error.message);
+  } finally {
+    setStatusLoading(false);
+  }
+};
 
   const renderEntregaItem = ({ item }) => (
     <View style={styles.itemContainer}>
       <TouchableOpacity 
-        style={styles.itemBox}
-        onPress={() => toggleExpand(item.id)}
+        style={styles.itemBox} 
+        onPress={() => setExpandedId(expandedId === item.id ? null : item.id)}
       >
         <View style={styles.itemHeader}>
-          <View>
-            <Text style={styles.itemTitle}>{item.estoque?.nome || 'Produto não encontrado'}</Text>
-            <Text style={styles.itemSubtitle}>Cliente: {item.cliente?.nome || 'Não informado'}</Text>
-          </View>
-          <View style={styles.headerRight}>
-            <Text style={styles.itemQuantity}>{item.quantidade} un.</Text>
-            {useLocalData && ( // Mostra ícone indicando dados locais
-              <Text style={styles.localDataIndicator}>📱</Text>
-            )}
-          </View>
+          <Text style={styles.itemTitle}>{item.estoque?.nome || 'Produto'}</Text>
+          <Text style={styles.itemSubtitle}>Cliente: {item.cliente?.nome || '---'}</Text>
         </View>
-        
+
         {expandedId === item.id && (
           <View style={styles.expandedContent}>
             {renderStatus(item.status)}
-            {renderNotaFiscal(item.nota)}
-            
-            <Text style={styles.itemDetail}>N° Série: {item.estoque?.numero_serie || 'N/A'}</Text>
-            <Text style={styles.itemDetail}>Saída: {new Date(item.data_saida).toLocaleString('pt-BR')}</Text>
-            
-            {item.data_entrega && (
-              <Text style={styles.itemDetail}>Entrega: {new Date(item.data_entrega).toLocaleString('pt-BR')}</Text>
-            )}
-            
-            <Text style={styles.itemDetail}>
-              Veículo: {item.veiculo?.modelo || 'Não informado'} ({item.veiculo?.placa || '---'})
-            </Text>
-            
-            <Text style={styles.itemDetail}>
-              Responsável: {item.funcionario?.nome || 'Não informado'}
-            </Text>
-            
-            {item.quantidade_devolvida > 0 && (
-              <Text style={styles.itemDetail}>
-                Devolvido: {item.quantidade_devolvida} un.
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Quantidade:</Text>
+              <Text style={styles.detailValue}>{item.quantidade}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Lote:</Text>
+              <Text style={styles.detailValue}>{item.estoque?.numero_serie || 'N/A'}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Data Saída:</Text>
+              <Text style={styles.detailValue}>{item.data_saida}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Data Entrega:</Text>
+              <Text style={styles.detailValue}>{item.data_entrega || '---'}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Veículo:</Text>
+              <Text style={styles.detailValue}>
+                {item.veiculo?.modelo || ''} - {item.veiculo?.placa || ''}
               </Text>
-            )}
-            
-            {item.motivo_devolucao && (
-              <Text style={styles.itemDetail}>Motivo: {item.motivo_devolucao}</Text>
-            )}
-            
-            {item.observacao && (
-              <Text style={styles.itemDetail}>Obs: {item.observacao}</Text>
-            )}
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Responsável:</Text>
+              <Text style={styles.detailValue}>{item.funcionario?.nome || ''}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Obs:</Text>
+              <Text style={styles.detailValue}>{item.observacao || '---'}</Text>
+            </View>
             
             <View style={styles.actionButtons}>
               <TouchableOpacity 
                 style={[styles.actionButton, styles.viewButton]}
-                onPress={() => navigation.navigate('DetalhesEntrega', { id: item.id })}
+                onPress={() => openModal(item)}
               >
-                <Text style={styles.actionButtonText}>Detalhes</Text>
+                <Text style={styles.actionButtonText}>Visualizar Completo</Text>
               </TouchableOpacity>
               
-              {['preparacao', 'a_caminho'].includes(item.status) && (
-                <TouchableOpacity 
-                  style={[styles.actionButton, styles.editButton]}
-                  onPress={() => navigation.navigate('EditarEntrega', { id: item.id })}
-                >
-                  <Text style={styles.actionButtonText}>Atualizar</Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity 
+                style={[styles.actionButton, { backgroundColor: '#000000' }]}
+                onPress={() => openStatusModal(item)}
+              >
+                <Text style={styles.actionButtonText}>Alterar Status</Text>
+              </TouchableOpacity>
             </View>
           </View>
         )}
       </TouchableOpacity>
     </View>
   );
-  
 
-return (
+  return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#043b57" barStyle="light-content" />
-      
+
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Image 
-              source={require('../../Assets/logo.png')}
-              style={styles.logo}
-              resizeMode="contain"
-            />
+            <Image source={require('../../Assets/logo.png')} style={styles.logo} resizeMode="contain" />
           </TouchableOpacity>
-          <View style={styles.headerRightActions}>
-            <TouchableOpacity 
-              onPress={() => setUseLocalData(!useLocalData)}
-              style={styles.dataSourceToggle}
-            >
-              <Text style={styles.dataSourceText}>
-                {useLocalData ? 'Usar Nuvem' : 'Usar Local'}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalPDO')}>
-              <Image 
-                source={require('../../Assets/PDO.png')} 
-                style={styles.alerta}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalPDO')}>
+            <Image source={require('../../Assets/PDO.png')} style={styles.alerta} resizeMode="contain" />
+          </TouchableOpacity>
         </View>
       </View>
 
       <View style={styles.content}>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => navigation.navigate('CadastroEntrega')}
-        >
-          <Text style={styles.buttonText}>+ NOVA ENTREGA</Text>
-        </TouchableOpacity>
-
-        {/* Navbar de filtros */}
-        <View style={styles.filterNavbar}>
-          <FlatList
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            data={[
-              { key: 'data_saida', label: 'Data de Saída' },
-              { key: 'status', label: 'Status' },
-              { key: 'cliente', label: 'Cliente' },
-              { key: 'veiculo', label: 'Veículo' },
-              { key: 'nota', label: 'Nota Fiscal' }
-            ]}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[
-                  styles.filterButton,
-                  filterKey === item.key && styles.filterButtonActive
-                ]}
-                onPress={() => setFilterKey(item.key)}
-              >
-                <Text
-                  style={[
-                    styles.filterButtonText,
-                    filterKey === item.key && styles.filterButtonTextActive
-                  ]}
-                >
-                  {item.label}
-                </Text>
-              </TouchableOpacity>
-            )}
-            keyExtractor={item => item.key}
-            contentContainerStyle={styles.filterNavbarContent}
-          />
-          {/* Exemplo de campo de filtro dinâmico */}
-          {filterKey === 'data_saida' && (
+       <View style={styles.navbarFiltro}>
+          <Text style={styles.filtroLabel}>Filtrar por {filterType}:</Text>
+          <View style={styles.filtroInputContainer}>
+            <Image source={require('../../Assets/search.png')} style={styles.filtroIcon} resizeMode="contain" />
+            <TextInput
+              style={styles.filtroInput}
+              placeholder={`Digite o ${filterType}`}
+              value={search}
+              onChangeText={setSearch}
+              placeholderTextColor="#888"
+              autoCapitalize="none"
+            />
             <TouchableOpacity
-              style={styles.filterInput}
-              onPress={() => setShowDatePicker(true)}
+              onPress={() => setFilterMenuVisible(true)}
+              style={{ paddingHorizontal: 12, justifyContent: 'center' }}
             >
-              <Text style={styles.filterInputText}>
-                {filterValue ? new Date(filterValue).toLocaleDateString('pt-BR') : 'Escolher data'}
-              </Text>
+              <Text style={{ fontSize: 24, fontWeight: 'bold' }}>⋮</Text>
             </TouchableOpacity>
-          )}
-          {filterKey === 'status' && (
-            <TouchableOpacity
-              style={styles.filterInput}
-              onPress={() => setShowStatusPicker(true)}
-            >
-              <Text style={styles.filterInputText}>
-                {filterValue || 'Escolher status'}
-              </Text>
-            </TouchableOpacity>
-          )}
-          {/* Adicione outros campos de filtro conforme necessário */}
+          </View>
         </View>
+
+        <Modal
+          transparent
+          animationType="fade"
+          visible={filterMenuVisible}
+          onRequestClose={() => setFilterMenuVisible(false)}
+        >
+          <Pressable
+            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' }}
+            onPress={() => setFilterMenuVisible(false)}
+          >
+            <View style={{
+              position: 'absolute',
+              right: 20,
+              top: 80,
+              backgroundColor: '#fff',
+              borderRadius: 8,
+              elevation: 5,
+              paddingVertical: 8,
+              minWidth: 140,
+            }}>
+              {FILTER_OPTIONS.map(option => (
+                <TouchableOpacity
+                  key={option.key}
+                  style={{
+                    paddingVertical: 10,
+                    paddingHorizontal: 15,
+                    backgroundColor: filterType === option.key ? '#043b57' : 'transparent'
+                  }}
+                  onPress={() => {
+                    setFilterType(option.key);
+                    setFilterMenuVisible(false);
+                    setSearch('');
+                  }}
+                >
+                  <Text style={{
+                    color: filterType === option.key ? '#fff' : '#000',
+                    fontWeight: 'bold'
+                  }}>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Pressable>
+        </Modal>
 
         {loading ? (
           <Text style={styles.emptyText}>Carregando entregas...</Text>
         ) : (
           <FlatList
-            data={
-              filterKey && filterValue
-                ? entregas.filter(entrega => {
-                    if (filterKey === 'data_saida') {
-                      return (
-                        new Date(entrega.data_saida).toLocaleDateString('pt-BR') ===
-                        new Date(filterValue).toLocaleDateString('pt-BR')
-                      );
-                    }
-                    if (filterKey === 'status') {
-                      return entrega.status === filterValue;
-                    }
-                    if (filterKey === 'cliente') {
-                      return (
-                        entrega.cliente?.nome
-                          ?.toLowerCase()
-                          .includes(filterValue.toLowerCase())
-                      );
-                    }
-                    if (filterKey === 'veiculo') {
-                      return (
-                        entrega.veiculo?.modelo
-                          ?.toLowerCase()
-                          .includes(filterValue.toLowerCase())
-                      );
-                    }
-                    if (filterKey === 'nota') {
-                      return filterValue === 'Com Nota'
-                        ? entrega.nota
-                        : !entrega.nota;
-                    }
-                    return true;
-                  })
-                : entregas
-            }
-            keyExtractor={item => item.id}
+            data={filteredEntregas}
+            keyExtractor={item => item.id.toString()}
             renderItem={renderEntregaItem}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>Nenhuma entrega registrada.</Text>
-            }
+            ListEmptyComponent={<Text style={styles.emptyText}>Nenhuma entrega encontrada.</Text>}
             contentContainerStyle={styles.listContent}
           />
         )}
-        {/* DatePicker e outros pickers podem ser implementados conforme necessário */}
       </View>
-  </View>
-);
+
+      {/* Modal de visualização completa */}
+      <Modal visible={modalVisible} animationType="slide" onRequestClose={closeModal}>
+        <View style={styles.modalContainer}>
+          <Text style={styles.modalTitle}>Dados da Entrega</Text>
+          {modalEntrega && (
+            <>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Produto:</Text>
+                <Text style={styles.detailValue}>{modalEntrega.estoque?.nome || '-'}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Quantidade:</Text>
+                <Text style={styles.detailValue}>{modalEntrega.quantidade}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Lote:</Text>
+                <Text style={styles.detailValue}>{modalEntrega.estoque?.numero_serie || '-'}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Cliente:</Text>
+                <Text style={styles.detailValue}>{modalEntrega.cliente?.nome || '-'}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Status:</Text>
+                <Text style={styles.detailValue}>{renderStatus(modalEntrega.status)}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Data Saída:</Text>
+                <Text style={styles.detailValue}>{modalEntrega.data_saida}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Data Entrega:</Text>
+                <Text style={styles.detailValue}>{modalEntrega.data_entrega || '-'}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Veículo:</Text>
+                <Text style={styles.detailValue}>
+                  {modalEntrega.veiculo?.modelo || ''} - {modalEntrega.veiculo?.placa || ''}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Responsável:</Text>
+                <Text style={styles.detailValue}>{modalEntrega.funcionario?.nome || ''}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Responsável:</Text>
+                <Text style={styles.detailValue}>{modalEntrega.nota || '-'}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Observações:</Text>
+                <Text style={styles.detailValue}>{modalEntrega.observacao || '-'}</Text>
+              </View>
+              
+              <TouchableOpacity onPress={closeModal} style={[styles.modalButtonSair, { marginTop: 20 }]}>
+                <Text style={styles.buttonText}>Fechar</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+      </Modal>
+
+      {/* Modal de alteração de status */}
+      <Modal
+        visible={statusModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setStatusModalVisible(false)}
+      >
+       <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          justifyContent: 'center',
+          padding: 20
+        }}>
+          <View style={{
+            backgroundColor: 'white',
+            borderRadius: 10,
+            padding: 20,
+          }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15 }}>Alterar Status da Entrega</Text>
+            
+            <Text style={styles.label}>Selecione o novo status:</Text>
+            <View style={styles.radioGroup}>
+              {STATUS_OPTIONS.map(option => (
+                <TouchableOpacity
+                  key={option.key}
+                  style={[
+                    styles.radioButton,
+                    newStatus === option.key && styles.radioButtonSelected
+                  ]}
+                  onPress={() => setNewStatus(option.key)}
+                >
+                  <Text style={[
+                    styles.radioText,
+                    newStatus === option.key && styles.radioTextSelected
+                  ]}>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={styles.label}>Observações:</Text>
+            <TextInput
+              style={styles.input}
+              value={observacaoStatus}
+              onChangeText={setObservacaoStatus}
+              placeholder="Adicione observações (opcional)"
+              multiline
+            />
+
+           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <TouchableOpacity
+                onPress={() => setModalVisible(false)}
+                style={{
+                  flex: 1,
+                  backgroundColor: '#ccc',
+                  padding: 12,
+                  borderRadius: 5,
+                  marginRight: 10,
+                }}
+                disabled={statusLoading}
+              >
+                <Text style={{ textAlign: 'center' }}>Cancelar</Text>
+              </TouchableOpacity>
+
+
+              <TouchableOpacity
+               style={{
+                  flex: 1,
+                  backgroundColor: statusLoading ? '#999' : '#043b57',
+                  padding: 12,
+                  borderRadius: 5,
+                }}
+                onPress={updateStatus}
+                disabled={statusLoading}
+              >
+                <Text style={{ color: 'white', textAlign: 'center' }}>
+                  {statusLoading ? 'Processando...' : 'Confirmar'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
 }

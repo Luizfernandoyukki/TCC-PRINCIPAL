@@ -4,12 +4,11 @@ import {
   FlatList,
   Image,
   Modal,
-  Platform,
   StatusBar,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { supabase } from '../../contexts/supabaseClient';
 import { databaseService } from '../../services/localDatabase';
@@ -371,17 +370,8 @@ export default function EstoqueScreen({ navigation }) {
         transparent={true}
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={{
-          flex: 1,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          justifyContent: 'center',
-          padding: 20
-        }}>
-          <View style={{
-            backgroundColor: 'white',
-            borderRadius: 10,
-            padding: 20,
-          }}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalConteiner2}>
             <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15 }}>
               Movimentar Estoque: {movimentacaoItem?.nome}
             </Text>
@@ -422,39 +412,21 @@ export default function EstoqueScreen({ navigation }) {
               keyboardType="numeric"
               value={movimentacaoQuantidade}
               onChangeText={setMovimentacaoQuantidade}
-              style={{
-                borderWidth: 1,
-                borderColor: '#ccc',
-                padding: Platform.OS === 'ios' ? 15 : 10,
-                marginBottom: 15,
-                borderRadius: 5,
-              }}
+              style={styles.modalInput}
             />
 
             <Text>Motivo (opcional):</Text>
             <TextInput
               value={movimentacaoMotivo}
               onChangeText={setMovimentacaoMotivo}
-              style={{
-                borderWidth: 1,
-                borderColor: '#ccc',
-                padding: Platform.OS === 'ios' ? 15 : 10,
-                marginBottom: 20,
-                borderRadius: 5,
-              }}
+              style={styles.modalInput}
               multiline
             />
 
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <View style={styles.modalOpcao}>
               <TouchableOpacity
                 onPress={() => setModalVisible(false)}
-                style={{
-                  flex: 1,
-                  backgroundColor: '#ccc',
-                  padding: 12,
-                  borderRadius: 5,
-                  marginRight: 10,
-                }}
+                style={styles.modalButtonCancelar}
                 disabled={movimentacaoLoading}
               >
                 <Text style={{ textAlign: 'center' }}>Cancelar</Text>
@@ -462,12 +434,7 @@ export default function EstoqueScreen({ navigation }) {
 
               <TouchableOpacity
                 onPress={confirmarMovimentacao}
-                style={{
-                  flex: 1,
-                  backgroundColor: movimentacaoLoading ? '#999' : '#043b57',
-                  padding: 12,
-                  borderRadius: 5,
-                }}
+                style={ styles.modalbuttonConfirmar}
                 disabled={movimentacaoLoading}
               >
                 <Text style={{ color: 'white', textAlign: 'center' }}>

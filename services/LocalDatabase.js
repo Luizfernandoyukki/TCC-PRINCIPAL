@@ -379,7 +379,7 @@ if (!tableCheck || tableCheck.length === 0) {
         data_devolucao TEXT NOT NULL DEFAULT CURRENT_DATE,
         responsavel_id TEXT NOT NULL,
         observacao TEXT,
-        criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
         last_sync TEXT,
         FOREIGN KEY (estoque_id) REFERENCES estoque(id),
@@ -497,6 +497,12 @@ if (!tableCheck || tableCheck.length === 0) {
       AFTER UPDATE ON entrega
       WHEN NEW.status = 'entregue' AND OLD.status != 'entregue'
       BEGIN
+        -- 1. Atualiza o estoque
+        UPDATE estoque 
+        SET quantidade = quantidade - NEW.quantidade
+        WHERE id = NEW.estoque_id;
+        
+        -- 2. Registra a saída
         INSERT INTO saida (
           tipo, origem_id, estoque_id, quantidade, cliente_id,
           veiculo_id, funcionario_id, motivo, nota
@@ -505,6 +511,45 @@ if (!tableCheck || tableCheck.length === 0) {
           NEW.veiculo_id, NEW.funcionario_id, 'Entrega realizada', NEW.nota
         );
       END;
+
+      CREATE TRIGGER IF NOT EXISTS devolucao_parcial
+        AFTER UPDATE ON entrega
+        WHEN NEW.status = 'devolucao_parcial' AND OLD.status != 'devolucao_parcial'
+        BEGIN
+          -- 1. Atualiza o estoque com a quantidade devolvida
+          UPDATE estoque 
+          SET quantidade = quantidade + NEW.quantidade_devolvida
+          WHERE id = NEW.estoque_id;
+          
+          -- 2. Cria registro de devolução (REMOVA a referência a origin_id)
+          INSERT INTO devolucao (
+            id, estoque_id, quantidade, motivo, 
+            data_devolucao, responsavel_id, observacao
+          ) VALUES (
+            (SELECT generateUUID()), 
+            NEW.estoque_id, 
+            NEW.quantidade_devolvida, 
+            COALESCE(NEW.motivo_devolucao, 'Devolução parcial de entrega'),
+            CURRENT_DATE,
+            NEW.funcionario_id,
+            CONCAT('Devolução parcial da entrega ', NEW.id)
+          );
+          
+          -- 3. Atualiza a tabela saida (REMOVA a referência a origin_id)
+          INSERT INTO saida (
+            tipo, estoque_id, quantidade, cliente_id,
+            veiculo_id, funcionario_id, motivo, nota
+          ) VALUES (
+            'entrega', 
+            NEW.estoque_id, 
+            (NEW.quantidade - NEW.quantidade_devolvida),
+            NEW.cliente_id,
+            NEW.veiculo_id, 
+            NEW.funcionario_id, 
+            CONCAT('Entrega parcial com devolução de ', NEW.quantidade_devolvida, ' itens'), 
+            NEW.nota
+          );
+        END;
 
       -- Triggers para verificação de rotas
       CREATE TRIGGER IF NOT EXISTS antes_inserir_rota

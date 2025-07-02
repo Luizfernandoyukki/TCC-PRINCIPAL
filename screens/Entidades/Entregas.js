@@ -1,4 +1,5 @@
 // EntregasScreen.js
+import NetInfo from '@react-native-community/netinfo';
 import { useEffect, useState } from 'react';
 import {
   Alert, FlatList, Image, Modal, Pressable,
@@ -40,7 +41,7 @@ export default function EntregasScreen({ navigation }) {
   const [newStatus, setNewStatus] = useState('');
   const [statusLoading, setStatusLoading] = useState(false);
   const [observacaoStatus, setObservacaoStatus] = useState('');
-
+ const [quantidadeDevolvida, setQuantidadeDevolvida] = useState(0);
   useEffect(() => {
     fetchEntregas();
   }, []);
@@ -75,7 +76,7 @@ export default function EntregasScreen({ navigation }) {
         const clientesResult = await databaseService.select('cliente');
         const veiculosResult = await databaseService.select('veiculo');
         const funcionariosResult = await databaseService.select('funcionario');
-
+       
         const entregasCompletas = entregasResult.data.map(entrega => ({
           ...entrega,
           estoque: estoquesResult.data.find(e => e.id === entrega.estoque_id) || {},
@@ -141,68 +142,109 @@ export default function EntregasScreen({ navigation }) {
   };
 
   const deleteEntrega = async (id) => {
-    Alert.alert('Excluir Entrega', 'Tem certeza que deseja excluir esta entrega?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Excluir', 
-        onPress: async () => {
-          try {
-            await databaseService.delete('entrega', 'id = ?', [id]);
-            await fetchEntregas();
-          } catch (error) {
-            Alert.alert('Erro', 'Falha ao excluir entrega: ' + error.message);
+  Alert.alert('Excluir Entrega', 'Tem certeza que deseja excluir esta entrega?', [
+    { text: 'Cancelar', style: 'cancel' },
+    {
+      text: 'Excluir', 
+      onPress: async () => {
+        try {
+          const netState = await NetInfo.fetch();
+          await databaseService.delete('entrega', 'id = ?', [id]);
+          
+          if (netState.isConnected) {
+            const { error } = await supabase
+              .from('entrega')
+              .delete()
+              .eq('id', id);
+            
+            if (error) throw error;
           }
+          
+          await fetchEntregas();
+          Alert.alert('Sucesso', 'Entrega excluída com sucesso!');
+        } catch (error) {
+          Alert.alert('Erro', 'Falha ao excluir entrega: ' + error.message);
         }
       }
-    ]);
-  };
+    }
+  ]);
+};
 
   const openStatusModal = (entrega) => {
-    setSelectedEntrega(entrega);
-    setNewStatus(entrega.status);
-    setObservacaoStatus('');
-    setStatusModalVisible(true);
-  };
+  setSelectedEntrega(entrega);
+  setNewStatus(entrega.status);
+  setObservacaoStatus('');
+  setStatusModalVisible(true);
+};
 
-  const updateStatus = async () => {
-    if (!newStatus) {
-      Alert.alert('Erro', 'Selecione um status válido');
+ const updateStatus = async () => {
+  if (!newStatus) {
+    Alert.alert('Erro', 'Selecione um status válido');
+    return;
+  }
+
+  // Validação para devolução parcial
+  if (newStatus === 'devolucao_parcial') {
+    if (quantidadeDevolvida <= 0 || quantidadeDevolvida > selectedEntrega.quantidade) {
+      Alert.alert('Erro', 'Quantidade devolvida inválida');
       return;
     }
+  }
 
-    setStatusLoading(true);
-    try {
-      const updateData = { 
-        status: newStatus,
-        observacao: observacaoStatus || null
-      };
+  setStatusLoading(true);
+  try {
+    const updateData = { 
+      status: newStatus,
+      observacao: observacaoStatus || null
+    };
 
-      if (newStatus === 'entregue') {
-        updateData.data_entrega = new Date().toISOString();
-      }
-
-      const netState = await NetInfo.fetch();
-      
-      if (netState.isConnected) {
-        const { error } = await supabase
-          .from('entrega')
-          .update(updateData)
-          .eq('id', selectedEntrega.id);
-        
-        if (error) throw error;
-      } else {
-        await databaseService.update('entrega', updateData, selectedEntrega.id);
-      }
-
-      Alert.alert('Sucesso', 'Status atualizado com sucesso!');
-      setStatusModalVisible(false);
-      fetchEntregas();
-    } catch (error) {
-      Alert.alert('Erro', 'Falha ao atualizar status: ' + error.message);
-    } finally {
-      setStatusLoading(false);
+    // Adiciona campos específicos para devolução parcial
+    if (newStatus === 'devolucao_parcial') {
+      updateData.quantidade_devolvida = quantidadeDevolvida;
+      updateData.motivo_devolucao = observacaoStatus || 'Devolução parcial';
     }
-  };
+
+    if (newStatus === 'entregue') {
+      updateData.data_entrega = new Date().toISOString();
+    }
+
+    const netState = await NetInfo.fetch();
+    
+    if (netState.isConnected) {
+      const { error } = await supabase
+        .from('entrega')
+        .update(updateData)
+        .eq('id', selectedEntrega.id);
+      
+      if (error) throw error;
+    } else {
+      // Para o SQLite local
+      await databaseService.transaction([
+        {
+          sql: `UPDATE entrega SET 
+                status = ?, 
+                observacao = ?,
+                ${newStatus === 'devolucao_parcial' ? 'quantidade_devolvida = ?, motivo_devolucao = ?' : ''}
+                ${newStatus === 'entregue' ? 'data_entrega = ?' : ''}
+                WHERE id = ?`,
+          params: [
+            newStatus,
+              ...(newStatus === 'entregue' ? [new Date().toISOString()] : []),
+            selectedEntrega.id
+          ].filter(p => p !== undefined)
+        }
+      ]);
+    }
+
+    Alert.alert('Sucesso', 'Status atualizado com sucesso!');
+    setStatusModalVisible(false);
+    fetchEntregas();
+  } catch (error) {
+    Alert.alert('Erro', 'Falha ao atualizar status: ' + error.message);
+  } finally {
+    setStatusLoading(false);
+  }
+};
 
   const renderEntregaItem = ({ item }) => (
     <View style={styles.itemContainer}>
@@ -223,7 +265,7 @@ export default function EntregasScreen({ navigation }) {
               <Text style={styles.detailValue}>{item.quantidade}</Text>
             </View>
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Nº Série:</Text>
+              <Text style={styles.detailLabel}>Lote:</Text>
               <Text style={styles.detailValue}>{item.estoque?.numero_serie || 'N/A'}</Text>
             </View>
             <View style={styles.detailRow}>
@@ -238,6 +280,12 @@ export default function EntregasScreen({ navigation }) {
               <Text style={styles.detailLabel}>Veículo:</Text>
               <Text style={styles.detailValue}>
                 {item.veiculo?.modelo || ''} - {item.veiculo?.placa || ''}
+              </Text>
+            </View>
+             <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Nota:</Text>
+              <Text style={styles.detailValue}>
+                {item.nota || ''} - {item.nota || ''}
               </Text>
             </View>
             <View style={styles.detailRow}>
@@ -399,7 +447,7 @@ export default function EntregasScreen({ navigation }) {
                 <Text style={styles.detailValue}>{modalEntrega.quantidade}</Text>
               </View>
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Nº Série:</Text>
+                <Text style={styles.detailLabel}>Lote:</Text>
                 <Text style={styles.detailValue}>{modalEntrega.estoque?.numero_serie || '-'}</Text>
               </View>
               <View style={styles.detailRow}>
@@ -429,11 +477,15 @@ export default function EntregasScreen({ navigation }) {
                 <Text style={styles.detailValue}>{modalEntrega.funcionario?.nome || ''}</Text>
               </View>
               <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Responsável:</Text>
+                <Text style={styles.detailValue}>{modalEntrega.nota || '-'}</Text>
+              </View>
+              <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Observações:</Text>
                 <Text style={styles.detailValue}>{modalEntrega.observacao || '-'}</Text>
               </View>
               
-              <TouchableOpacity onPress={closeModal} style={[styles.button, { marginTop: 20 }]}>
+              <TouchableOpacity onPress={closeModal} style={[styles.modalButtonSair, { marginTop: 20 }]}>
                 <Text style={styles.buttonText}>Fechar</Text>
               </TouchableOpacity>
             </>
@@ -448,9 +500,18 @@ export default function EntregasScreen({ navigation }) {
         transparent={true}
         onRequestClose={() => setStatusModalVisible(false)}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.content}>
-            <Text style={styles.modalTitle}>Alterar Status da Entrega</Text>
+       <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          justifyContent: 'center',
+          padding: 20
+        }}>
+          <View style={{
+            backgroundColor: 'white',
+            borderRadius: 10,
+            padding: 20,
+          }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15 }}>Alterar Status da Entrega</Text>
             
             <Text style={styles.label}>Selecione o novo status:</Text>
             <View style={styles.radioGroup}>
@@ -472,7 +533,6 @@ export default function EntregasScreen({ navigation }) {
                 </TouchableOpacity>
               ))}
             </View>
-
             <Text style={styles.label}>Observações:</Text>
             <TextInput
               style={styles.input}
@@ -482,22 +542,34 @@ export default function EntregasScreen({ navigation }) {
               multiline
             />
 
-            <View style={styles.actionButtons}>
+           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: '#ccc' }]}
-                onPress={() => setStatusModalVisible(false)}
+                onPress={() => setModalVisible(false)}
+                style={{
+                  flex: 1,
+                  backgroundColor: '#ccc',
+                  padding: 12,
+                  borderRadius: 5,
+                  marginRight: 10,
+                }}
                 disabled={statusLoading}
               >
-                <Text style={styles.actionButtonText}>Cancelar</Text>
+                <Text style={{ textAlign: 'center' }}>Cancelar</Text>
               </TouchableOpacity>
 
+
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: '#043b57' }]}
+               style={{
+                  flex: 1,
+                  backgroundColor: statusLoading ? '#999' : '#043b57',
+                  padding: 12,
+                  borderRadius: 5,
+                }}
                 onPress={updateStatus}
                 disabled={statusLoading}
               >
-                <Text style={styles.actionButtonText}>
-                  {statusLoading ? 'Salvando...' : 'Salvar Alterações'}
+                <Text style={{ color: 'white', textAlign: 'center' }}>
+                  {statusLoading ? 'Processando...' : 'Confirmar'}
                 </Text>
               </TouchableOpacity>
             </View>

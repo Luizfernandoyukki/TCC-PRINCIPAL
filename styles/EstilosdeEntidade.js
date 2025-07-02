@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
   buttonText: {
     fontWeight: 'bold',
     fontSize: 20,
-    color: '#043b57',
+    color: '#000',
   },
   itemContainer: {
     position: 'relative',
@@ -122,10 +122,7 @@ const styles = StyleSheet.create({
   deleteButton: {
     backgroundColor: '#d9534f',
   },
-  actionButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
+  
   emptyText: {
     textAlign: 'center',
     marginTop: 20,
@@ -199,10 +196,7 @@ editButton: {
 deleteButton: {
   backgroundColor: '#F44336'
 },
-actionButtonText: {
-  color: 'white',
-  fontWeight: 'bold'
-},
+
 funcionarioFoto: {
   width: 50,
   height: 50,
@@ -257,10 +251,7 @@ editButton: {
 deleteButton: {
   backgroundColor: '#F44336'
 },
-actionButtonText: {
-  color: 'white',
-  fontWeight: 'bold'
-},tabContainer: {
+tabContainer: {
   flexDirection: 'row',
   marginBottom: 15,
   borderBottomWidth: 1,
@@ -329,10 +320,7 @@ actionButton: {
   borderRadius: 4,
   alignItems: 'center'
 },
-actionButtonText: {
-  color: 'white',
-  fontWeight: 'bold'
-},
+
 itemContainer: {
   marginBottom: 10
 },
@@ -829,10 +817,7 @@ buttonEditar: {
   viewButton: {
     backgroundColor: '#043b57',
   },
-  actionButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
+  
 
   // FlatList
   listContent: {
@@ -917,7 +902,7 @@ buttonEditar: {
   },
 
   viewButton: {
-    backgroundColor: '#2a7ad9', // azul
+    backgroundColor: 'grey', // azul
   },
 
   addButton: {
@@ -926,18 +911,6 @@ buttonEditar: {
 
   deleteButton: {
     backgroundColor: '#dc3545', // vermelho
-  },
-
-  actionButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-
-  // Modal (opcional)
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#fff',
-    paddingTop: 40,
   },
   modalTitle: {
     fontSize: 20,
@@ -955,7 +928,21 @@ buttonEditar: {
   overflow: 'hidden',
   backgroundColor: 'white',
   },
-
+// Adicione isso no seu arquivo de estilos (EstilosdeEntidade.js)
+input: {
+  borderWidth: 1,
+  borderColor: '#ccc',
+  borderRadius: 5,
+  padding: 10,
+  marginBottom: 15,
+  backgroundColor: '#fff',
+},
+label: {
+  fontSize: 16,
+  fontWeight: 'bold',
+  marginBottom: 5,
+  color: '#333',
+},
 modalContainer: {
   flex: 1,
   backgroundColor: '#fff',
@@ -999,6 +986,55 @@ radioTextSelected: {
   color: 'white',
   fontWeight: 'bold',
   fontSize: 14,
+},
+modalContainer:{
+  flex: 1,
+   backgroundColor: 'rgba(0,0,0,0.5)',
+  justifyContent: 'center',
+   padding: 20
+},
+modalContainer2:{
+   backgroundColor: 'white',
+   borderRadius: 10,
+   padding: 20,
+},
+modalTitle:{ 
+  fontSize: 18, 
+  fontWeight: 'bold', 
+  marginBottom: 15 
+},
+modalOpcao:{
+   flexDirection: 'row',
+    marginBottom: 15 
+},
+modalInput:{
+  borderWidth: 1,
+                  borderColor: '#ccc',
+                  padding: Platform.OS === 'ios' ? 15 : 10,
+                  marginBottom: 15,
+                  borderRadius: 5,
+},
+modalButtonCancelar: {
+   flex: 1,
+                  backgroundColor: '#ccc',
+                  padding: 12,
+                  borderRadius: 5,
+                  marginRight: 10,
+},
+modalbuttonConfirmar: {
+  flex: 1,
+                  backgroundColor:'#043b57',
+                  padding: 12,
+                  borderRadius: 5,
+},
+modalButtonSair: {
+ backgroundColor:'#043b57',
+  padding: 12,
+  borderRadius: 15,
+  alignItems: 'center',
+  marginTop: 10,
+  marginEnd:20,
+  marginStart:20,
 },
 });
 

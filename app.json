@@ -5,21 +5,21 @@
     "version": "1.0.0",
     "sdkVersion": "53.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/Carregando.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/Carregando.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#00"
     },
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/Carregando.png",
+        "backgroundColor": "#000000"
       }
     },
     "web": {
@@ -30,7 +30,7 @@
     ],
     "extra": {
       "EXPO_PUBLIC_SUPABASE_URL": "https://fvnunimmhlabeppyqshx.supabase.com",
-      "EXPO_PUBLIC_SUPABASE_KEY": "SUA_CHAVE_PUBLICA_AQUI"
+      "EXPO_PUBLIC_SUPABASE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2bnVuaW1taGxhYmVwcHlxc2h4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk4NTg0NjIsImV4cCI6MjA2NTQzNDQ2Mn0.1i3Xzfm00I_kINNc2eKZxUM6YGtt6QBNRf2z6yvrlCM"
     }
   }
 }
