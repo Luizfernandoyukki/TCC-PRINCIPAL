@@ -63,7 +63,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  // Estilos do cabeçalho (mantidos iguais)
   header: {
     height: 120,
     backgroundColor: '#043b57',
@@ -85,7 +84,6 @@ const styles = StyleSheet.create({
     height: 50,
     marginRight: 30,
   },
-  // Novos estilos para a tela inicial
   backgroundImage: {
     flex: 1,
     justifyContent: 'center',

@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from './supabaseClient';
+import { supabase, SupabaseService } from './supabaseClient';
 
 const AuthContext = createContext();
 
@@ -12,12 +12,8 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const checkConnection = async () => {
-      try {
-        const { error } = await supabase.from('test').select('*').limit(1); // uma forma de testar conexão
-        setIsOnline(!error);
-      } catch {
-        setIsOnline(false);
-      }
+      const isConnected = await SupabaseService.checkConnection();
+      setIsOnline(isConnected);
     };
     checkConnection();
   }, []);
@@ -28,7 +24,7 @@ export const AuthProvider = ({ children }) => {
       if (pendingOps && isOnline) {
         try {
           const ops = JSON.parse(pendingOps);
-          // Processar operações pendentes aqui
+          
           await AsyncStorage.removeItem('pendingAuthOps');
         } catch (error) {
           console.error('Erro ao sincronizar operações:', error);
@@ -61,6 +57,17 @@ export const AuthProvider = ({ children }) => {
 
     loadSession();
   }, []);
+  useEffect(() => {
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser(session.user);
+      } else {
+        setUser(null);
+      }
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
 
   const loadUserProfile = async (userId) => {
     try {
@@ -77,7 +84,7 @@ export const AuthProvider = ({ children }) => {
       await AsyncStorage.setItem('userRole', profile.hierarquia_id.toString());
     } catch (error) {
       console.error('Erro ao carregar perfil:', error);
-      setUserRole(4); // default
+      setUserRole(4); 
     }
   };
 
@@ -91,7 +98,7 @@ export const AuthProvider = ({ children }) => {
         options: {
           data: {
             nome: userData.nome,
-            cpf: userData.CPF
+            cpf: userData.cpf 
           }
         }
       });
@@ -141,7 +148,7 @@ export const AuthProvider = ({ children }) => {
   const handleLogout = async () => {
     setUser(null);
     setUserRole(null);
-    await AsyncStorage.removeItem('userRole');
+    await AsyncStorage.multiRemove(['userRole', 'pendingAuthOps']);
   };
 
   return (

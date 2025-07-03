@@ -5,15 +5,14 @@ import { ActivityIndicator, Alert, View } from 'react-native';
 import 'react-native-url-polyfill/auto';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NomesProvider } from './contexts/NomesContext';
-import { databaseService, initDatabase } from './services/localDatabase';
-import SyncService from './services/syncService';
-// Rotas
 import {
   CADASTRO_ROUTES,
   getRequiredRole,
   PROTECTED_ROUTES,
   PUBLIC_ROUTES
 } from './routes';
+import { databaseService, initDatabase } from './services/localDatabase';
+import SyncService from './services/syncService';
 
 const Stack = createNativeStackNavigator();
 
@@ -24,15 +23,15 @@ const LoadingScreen = () => (
   </View>
 );
 
+ 
 function AppRoutes() {
   const { user, loading } = useAuth();
   const [userRole, setUserRole] = React.useState(null);
   const [dbInitialized, setDbInitialized] = React.useState(false); 
 
-
+    
     React.useEffect(() => {
     if (user) {
-      // Assumindo que user.hierarquia_nivel vem do Supabase
       setUserRole(user.hierarquia_nivel || 1); 
     } else {
       setUserRole(null);
@@ -44,7 +43,6 @@ function AppRoutes() {
     try {
       await initDatabase();
       
-      // Agora podemos usar databaseService com segurança
       const tables = await databaseService.executeQuery(
         "SELECT name FROM sqlite_master WHERE type='table'"
       );
@@ -58,12 +56,11 @@ function AppRoutes() {
   };
 
   initializeApp();
-    // Sincronização periódica
     const interval = setInterval(() => {
       SyncService.syncAllTables()
         .then((result) => console.log('Sincronização periódica:', result))
         .catch((error) => console.error('Erro na sincronização periódica:', error));
-    }, 10 * 60 * 1000); // 10 minutos
+    }, 10 * 60 * 1000); 
 
     return () => clearInterval(interval);
   }, []);
@@ -110,8 +107,8 @@ function AppRoutes() {
   );
 }
 
-// Componente principal do App
 export default function App() {
+   
   return (
     <AuthProvider>
       <NomesProvider>

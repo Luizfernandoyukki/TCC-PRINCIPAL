@@ -28,7 +28,6 @@ const STATUS_OPTIONS = [
 
 export default function EntregasScreen({ navigation }) {
   const [entregas, setEntregas] = useState([]);
- 
   const [filteredEntregas, setFilteredEntregas] = useState([]);
   const [expandedId, setExpandedId] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -42,7 +41,7 @@ export default function EntregasScreen({ navigation }) {
   const [newStatus, setNewStatus] = useState('');
   const [statusLoading, setStatusLoading] = useState(false);
   const [observacaoStatus, setObservacaoStatus] = useState('');
-
+ const [quantidadeDevolvida, setQuantidadeDevolvida] = useState(0);
   useEffect(() => {
     fetchEntregas();
   }, []);
@@ -77,7 +76,7 @@ export default function EntregasScreen({ navigation }) {
         const clientesResult = await databaseService.select('cliente');
         const veiculosResult = await databaseService.select('veiculo');
         const funcionariosResult = await databaseService.select('funcionario');
-
+       
         const entregasCompletas = entregasResult.data.map(entrega => ({
           ...entrega,
           estoque: estoquesResult.data.find(e => e.id === entrega.estoque_id) || {},
@@ -150,11 +149,8 @@ export default function EntregasScreen({ navigation }) {
       onPress: async () => {
         try {
           const netState = await NetInfo.fetch();
-          
-          // Excluir localmente em qualquer caso
           await databaseService.delete('entrega', 'id = ?', [id]);
           
-          // Se estiver online, excluir também no Supabase
           if (netState.isConnected) {
             const { error } = await supabase
               .from('entrega')
@@ -233,8 +229,7 @@ export default function EntregasScreen({ navigation }) {
                 WHERE id = ?`,
           params: [
             newStatus,
-            observacaoStatus || null,
-            ...(newStatus === 'entregue' ? [new Date().toISOString()] : []),
+              ...(newStatus === 'entregue' ? [new Date().toISOString()] : []),
             selectedEntrega.id
           ].filter(p => p !== undefined)
         }
@@ -285,6 +280,12 @@ export default function EntregasScreen({ navigation }) {
               <Text style={styles.detailLabel}>Veículo:</Text>
               <Text style={styles.detailValue}>
                 {item.veiculo?.modelo || ''} - {item.veiculo?.placa || ''}
+              </Text>
+            </View>
+             <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Nota:</Text>
+              <Text style={styles.detailValue}>
+                {item.nota || ''} - {item.nota || ''}
               </Text>
             </View>
             <View style={styles.detailRow}>

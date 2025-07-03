@@ -14,11 +14,9 @@ const SyncService = {
     }
   },
 
-  // Normaliza dados entre Supabase e SQLite
   normalizeData(tableName, data) {
     if (!data) return data;
 
-    // Converter tipos específicos
     if (tableName === 'funcionario') {
       return {
         ...data,
@@ -44,7 +42,6 @@ const SyncService = {
     return data;
   },
 
-  // Sincroniza uma tabela específica
   async syncTable(tableName, batchSize = 100) {
     try {
       const isOnline = await this.checkSupabaseConnection();
@@ -53,11 +50,9 @@ const SyncService = {
         return { success: false, offline: true };
       }
 
-      // 1. Obter última data de sincronização
       const lastSync = await databaseService.getLastSync(tableName);
       console.log(`Última sincronização para ${tableName}: ${lastSync}`);
 
-      // 2. Baixar dados do Supabase
       let query = supabase.from(tableName).select('*');
       if (lastSync) {
         query = query.gt('updated_at', lastSync);
@@ -66,13 +61,11 @@ const SyncService = {
       const { data: supabaseData, error } = await query;
       if (error) throw error;
 
-      // 3. Processar em lotes para evitar problemas de memória
       const batches = [];
       for (let i = 0; i < supabaseData.length; i += batchSize) {
         batches.push(supabaseData.slice(i, i + batchSize));
       }
 
-      // 4. Atualizar banco local com os dados do Supabase
       for (const batch of batches) {
         await databaseService.transaction(
           batch.map(item => {
@@ -93,7 +86,6 @@ const SyncService = {
         );
       }
 
-      // 5. Enviar alterações locais para o Supabase
       const unsyncedLocal = await databaseService.getUnsyncedRecords(tableName);
       console.log(`Registros locais não sincronizados: ${unsyncedLocal.length}`);
 

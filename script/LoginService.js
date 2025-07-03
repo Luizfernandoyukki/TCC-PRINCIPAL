@@ -137,7 +137,6 @@ export const LoginService = {
   }
 };
 
-// Verifica se há internet funcional com Supabase
 async function checkConnection() {
   try {
     const { error } = await supabase

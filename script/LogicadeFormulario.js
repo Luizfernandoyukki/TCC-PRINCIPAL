@@ -9,14 +9,14 @@ const initialFormData = {
   nome: '',
   dataNascimento: new Date(),
   dataAdmissao: new Date(),
-  genero_id: 1,         // valor padrão válido
+  genero_id: 1,         
   CPF: '',
   ctps: '',
   rg: '',
-  cargaHoraria: '1',    // valor padrão válido
+  cargaHoraria: '1',   
   nDependentes: '0',
-  hierarquia_id: 1,     // valor padrão válido
-  funcao_id: 1,         // valor padrão válido         // valor padrão válido
+  hierarquia_id: 1,    
+  funcao_id: 1,             
   numeroFicha: '',
   numeroAparelho: '',
   cep: '',
@@ -100,14 +100,11 @@ export default function useCadastroForm(navigation) {
     return isNaN(num) ? null : num;
   };
 
-  // Função utilitária para garantir valor válido entre 1 e 10
   const getFirstValidId = (options) => {
     if (!options || options.length === 0) return 1;
-    // Tenta de 1 até 10
     for (let i = 1; i <= 10; i++) {
       if (options.some(opt => opt.id === i)) return i;
     }
-    // Se não encontrar, retorna o primeiro id disponível entre 1 e 10
     const validOption = options.find(opt => typeof opt.id === 'number' && opt.id >= 1 && opt.id <= 10);
     return validOption ? validOption.id : 1;
   };
@@ -146,11 +143,9 @@ export default function useCadastroForm(navigation) {
 
     if (numericFields.includes(field)) {
       value = value === '' ? null : value;
-      // Apenas converte para string se NÃO for genero_id
       if (value !== null && field !== 'genero_id') {
         value = value.toString().replace(/[^0-9]/g, '');
       }
-      // Para genero_id, mantenha como número
       if (field === 'genero_id' && typeof value === 'string') {
         value = Number(value);
       }
@@ -176,7 +171,7 @@ export default function useCadastroForm(navigation) {
     }
 
     if (field === 'nome') {
-      value = value.trimStart(); // Remove espaços só do início enquanto digita
+      value = value.trimStart();
     }
   };
 
@@ -269,7 +264,6 @@ export default function useCadastroForm(navigation) {
       'confirmarSenha', 'is_admin'
     ];
 
-    // Só exige campos profissionais se NÃO for admin
     if (!formData.is_admin) {
       requiredFields.push('hierarquia_id', 'funcao_id');
       if (!formData.superior_id) {
@@ -285,7 +279,6 @@ export default function useCadastroForm(navigation) {
       }
     });
 
-    // Só valida campos numéricos profissionais se NÃO for admin
     const numericFields = {
       cargaHoraria: 'Carga horária',
       nDependentes: 'Número de dependentes',
@@ -352,7 +345,6 @@ export default function useCadastroForm(navigation) {
       console.log('formData inicial:', JSON.stringify(formData));
       console.log('opcoes:', JSON.stringify(opcoes));
 
-      // 1. Criar usuário no Auth
       console.log('a função abriu');
        console.log('Tentando criar usuário no Auth...');
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -381,7 +373,6 @@ export default function useCadastroForm(navigation) {
       console.log('Usuário criado com id:', userId);
 
 
-      // Verificar se já existe funcionário com este usuário
       const { data: existingFuncionario } = await supabase
         .from('funcionario')
         .select('id')
@@ -392,7 +383,6 @@ export default function useCadastroForm(navigation) {
         throw new Error('Já existe um funcionário cadastrado com este usuário. Faça login ou use outro e-mail.');
       }
 
-      // Verificar se já existe funcionário com este CPF
       const { data: existingCpf } = await supabase
         .from('funcionario')
         .select('id')
@@ -403,7 +393,6 @@ export default function useCadastroForm(navigation) {
         throw new Error('Já existe um funcionário cadastrado com este CPF.');
       }
 
-      // 2. Upload da foto (se existir)
       let fotoUrl = null;
       if (formData.foto) {
         console.log('Tentando fazer upload da foto...');
@@ -413,12 +402,10 @@ export default function useCadastroForm(navigation) {
         console.log('Nenhuma foto selecionada para upload.');
       }
 
-      // 3. IDs de referência
       const hierarquiaId = getFirstValidId(opcoes.hierarquias);
       const funcaoId = getFirstValidId(opcoes.funcoes);
       console.log('IDs selecionados:', { hierarquiaId, funcaoId});
 
-      // 4. Cadastrar endereço
       console.log('Tentando cadastrar endereço...');
       console.log('Dados do endereço:', {
         cep: formData.cep.replace(/\D/g, ''),
@@ -451,10 +438,9 @@ export default function useCadastroForm(navigation) {
         throw endError || new Error('Falha ao cadastrar endereço');
       }
 
-      // 5. Preparar dados do funcionário (agora com endereco.id)
       const funcionarioData = {
         id: userId,
-        nome: formData.nome.trim(), // Remove espaços antes/depois ao salvar
+        nome: formData.nome.trim(), 
         data_nascimento: formData.dataNascimento,
         cpf: formData.CPF.replace(/\D/g, ''),
         ctps: formData.ctps,
@@ -485,7 +471,6 @@ export default function useCadastroForm(navigation) {
       };
       console.log('Dados do funcionário a serem inseridos:', funcionarioData);
 
-      // 6. Cadastrar funcionário
       console.log('Tentando cadastrar funcionário...');
       const { error: funcError } = await supabase
         .from('funcionario')
@@ -495,7 +480,6 @@ export default function useCadastroForm(navigation) {
 
       if (funcError) throw funcError;
 
-      // 7. Cadastrar contatos (telefone e email em tabelas separadas)
       if (formData.telefone1) {
         console.log('Tentando cadastrar telefone principal...');
         const { error: telefone1Error } = await supabase

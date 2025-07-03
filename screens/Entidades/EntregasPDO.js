@@ -1,4 +1,4 @@
-// EntregasVisualizacaoScreen.js
+// EntregasScreen.js
 import NetInfo from '@react-native-community/netinfo';
 import { useEffect, useState } from 'react';
 import {
@@ -26,7 +26,7 @@ const STATUS_OPTIONS = [
   { key: 'rejeitada', label: 'Rejeitada' }
 ];
 
-export default function EntregasVisualizacaoScreen({ navigation }) {
+export default function EntregasScreen({ navigation }) {
   const [entregas, setEntregas] = useState([]);
   const [filteredEntregas, setFilteredEntregas] = useState([]);
   const [expandedId, setExpandedId] = useState(null);
@@ -41,7 +41,7 @@ export default function EntregasVisualizacaoScreen({ navigation }) {
   const [newStatus, setNewStatus] = useState('');
   const [statusLoading, setStatusLoading] = useState(false);
   const [observacaoStatus, setObservacaoStatus] = useState('');
-
+ const [quantidadeDevolvida, setQuantidadeDevolvida] = useState(0);
   useEffect(() => {
     fetchEntregas();
   }, []);
@@ -76,7 +76,7 @@ export default function EntregasVisualizacaoScreen({ navigation }) {
         const clientesResult = await databaseService.select('cliente');
         const veiculosResult = await databaseService.select('veiculo');
         const funcionariosResult = await databaseService.select('funcionario');
-
+       
         const entregasCompletas = entregasResult.data.map(entrega => ({
           ...entrega,
           estoque: estoquesResult.data.find(e => e.id === entrega.estoque_id) || {},
@@ -141,6 +141,35 @@ export default function EntregasVisualizacaoScreen({ navigation }) {
     setModalEntrega(null);
   };
 
+  const deleteEntrega = async (id) => {
+  Alert.alert('Excluir Entrega', 'Tem certeza que deseja excluir esta entrega?', [
+    { text: 'Cancelar', style: 'cancel' },
+    {
+      text: 'Excluir', 
+      onPress: async () => {
+        try {
+          const netState = await NetInfo.fetch();
+          await databaseService.delete('entrega', 'id = ?', [id]);
+          
+          if (netState.isConnected) {
+            const { error } = await supabase
+              .from('entrega')
+              .delete()
+              .eq('id', id);
+            
+            if (error) throw error;
+          }
+          
+          await fetchEntregas();
+          Alert.alert('Sucesso', 'Entrega excluída com sucesso!');
+        } catch (error) {
+          Alert.alert('Erro', 'Falha ao excluir entrega: ' + error.message);
+        }
+      }
+    }
+  ]);
+};
+
   const openStatusModal = (entrega) => {
   setSelectedEntrega(entrega);
   setNewStatus(entrega.status);
@@ -148,7 +177,7 @@ export default function EntregasVisualizacaoScreen({ navigation }) {
   setStatusModalVisible(true);
 };
 
-  const updateStatus = async () => {
+ const updateStatus = async () => {
   if (!newStatus) {
     Alert.alert('Erro', 'Selecione um status válido');
     return;
@@ -200,8 +229,7 @@ export default function EntregasVisualizacaoScreen({ navigation }) {
                 WHERE id = ?`,
           params: [
             newStatus,
-            observacaoStatus || null,
-            ...(newStatus === 'entregue' ? [new Date().toISOString()] : []),
+              ...(newStatus === 'entregue' ? [new Date().toISOString()] : []),
             selectedEntrega.id
           ].filter(p => p !== undefined)
         }
@@ -254,6 +282,12 @@ export default function EntregasVisualizacaoScreen({ navigation }) {
                 {item.veiculo?.modelo || ''} - {item.veiculo?.placa || ''}
               </Text>
             </View>
+             <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Nota:</Text>
+              <Text style={styles.detailValue}>
+                {item.nota || ''} - {item.nota || ''}
+              </Text>
+            </View>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Responsável:</Text>
               <Text style={styles.detailValue}>{item.funcionario?.nome || ''}</Text>
@@ -300,7 +334,11 @@ export default function EntregasVisualizacaoScreen({ navigation }) {
       </View>
 
       <View style={styles.content}>
-       <View style={styles.navbarFiltro}>
+        <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('CadastroEntrega')}>
+          <Text style={styles.buttonText}>+ NOVA ENTREGA</Text>
+        </TouchableOpacity>
+
+        <View style={styles.navbarFiltro}>
           <Text style={styles.filtroLabel}>Filtrar por {filterType}:</Text>
           <View style={styles.filtroInputContainer}>
             <Image source={require('../../Assets/search.png')} style={styles.filtroIcon} resizeMode="contain" />

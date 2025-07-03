@@ -6,7 +6,7 @@ export const supabaseOptimizations = {
     returning: 'minimal'
   },
   insertOptions: {
-    returning: 'minimal', // Não retornar dados após inserção
+    returning: 'minimal',
     count: 'exact'
   },
   storageOptions: {

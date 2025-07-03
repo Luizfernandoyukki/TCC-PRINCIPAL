@@ -238,7 +238,7 @@ export default function EstoqueScreen({ navigation }) {
 
               {item.numero_serie && (
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>N° Série:</Text>
+                  <Text style={styles.detailLabel}>Lote:</Text>
                   <Text style={styles.detailValue}>{item.numero_serie}</Text>
                 </View>
               )}

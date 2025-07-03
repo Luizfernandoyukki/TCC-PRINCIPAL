@@ -24,36 +24,30 @@ export const initDatabase = async () => {
     throw new Error('SQLite não disponível no navegador.');
   }
 
-  // Verifica se o módulo SQLite está disponível
   if (!SQLite || !SQLite.openDatabaseAsync) {
     console.error('Módulo SQLite não está disponível:', SQLite);
     throw new Error('Módulo SQLite não está disponível');
   }
 
   try {
-    // Abrir conexão com o banco de dados
     console.log('Abrindo conexão com o banco de dados...');
      db = await SQLite.openDatabaseAsync('localDatabase.db');
     isInitialized = true;
-    processQueue(); // Processa operações pendentes
+    processQueue(); 
     
-    // Verificar se a conexão foi estabelecida
     if (!db) {
       throw new Error('Falha ao abrir conexão com o banco de dados');
     }
     console.log('Conexão com o banco de dados estabelecida com sucesso');
 
-    // Verificar se as tabelas já existem
     const tableCheck = await db.getAllAsync(
   `SELECT name FROM sqlite_master WHERE type='table' AND name='funcionario'`
 );
 
 if (!tableCheck || tableCheck.length === 0) {
   console.log('Tabela funcionario não existe, criando tabelas...');
-  // Proceda com a criação das tabelas
 }
 
-    // Se a tabela não existe, criar todas as tabelas
     if (!tableCheck) {
       console.log('Criando tabelas do banco de dados...');
       
@@ -155,26 +149,31 @@ if (!tableCheck || tableCheck.length === 0) {
         FOREIGN KEY (funcionario_id) REFERENCES funcionario(id)
       );
 
-      -- Tabela de Rotas
-      CREATE TABLE IF NOT EXISTS rota (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nome TEXT NOT NULL,
-        destino TEXT NOT NULL,
-        distancia REAL,
-        horario_partida TEXT NOT NULL,
-        veiculo_id INTEGER NOT NULL,
-        funcionario_id TEXT NOT NULL,
-        clientes_id TEXT,
-        data_rota TEXT NOT NULL DEFAULT CURRENT_DATE,
-        observacao TEXT,
-        status TEXT NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente', 'em_andamento', 'concluida', 'cancelada')),
-        tempo_medio_minutos INTEGER NOT NULL DEFAULT 0 CHECK (tempo_medio_minutos >= 0),
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        last_sync TEXT,
-        FOREIGN KEY (veiculo_id) REFERENCES veiculo(id),
-        FOREIGN KEY (funcionario_id) REFERENCES funcionario(id)
-      );
+    CREATE TABLE IF NOT EXISTS rota (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    destino TEXT NOT NULL,
+    distancia REAL,
+    horario_partida TEXT NOT NULL,
+    veiculo_id INTEGER NOT NULL,
+    funcionario_id TEXT NOT NULL,
+    data_rota TEXT NOT NULL DEFAULT CURRENT_DATE,
+    observacao TEXT,
+    status TEXT NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente', 'em_andamento', 'concluida', 'cancelada')),
+    tempo_medio_minutos INTEGER NOT NULL DEFAULT 0 CHECK (tempo_medio_minutos >= 0),
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    last_sync TEXT,
+    FOREIGN KEY (veiculo_id) REFERENCES veiculo(id),
+    FOREIGN KEY (funcionario_id) REFERENCES funcionario(id)
+);
+CREATE TABLE IF NOT EXISTS rota_cliente (
+    rota_id INTEGER NOT NULL,
+    cliente_id INTEGER NOT NULL,
+    PRIMARY KEY (rota_id, cliente_id),
+    FOREIGN KEY (rota_id) REFERENCES rota(id),
+    FOREIGN KEY (cliente_id) REFERENCES cliente(id)
+);
 
       -- Tabela de Funcionários
       CREATE TABLE IF NOT EXISTS funcionario (
@@ -612,13 +611,12 @@ export const databaseService = {
     try {
       console.log(`Executando query: ${sql}`, params);
       
-      // Para consultas SELECT, usamos getAllAsync
       if (sql.trim().toUpperCase().startsWith('SELECT')) {
         const result = await db.getAllAsync(sql, params);
         console.log('Query SELECT executada com sucesso', result);
-        return { rows: result }; // Padroniza o retorno para ter a propriedade rows
-      } 
-      // Para outras operações (INSERT, UPDATE, DELETE), usamos runAsync
+        return { rows: result }; 
+      }
+      
       else {
         const result = await db.runAsync(sql, params);
         console.log('Query executada com sucesso', result);
@@ -629,9 +627,7 @@ export const databaseService = {
       throw error;
     }
   },
-  /**
-   * Insere um novo registro na tabela
-   */
+  
   async insert(table, data) {
     const columns = Object.keys(data).join(', ');
     const placeholders = Object.keys(data).map(() => '?').join(', ');
@@ -646,9 +642,7 @@ export const databaseService = {
     }
   },
 
-  /**
-   * Busca registros em uma tabela
-   */
+  
   async select(table, where = '', params = [], orderBy = '', limit = '') {
     const whereClause = where ? `WHERE ${where}` : '';
     const orderClause = orderBy ? `ORDER BY ${orderBy}` : '';
@@ -663,9 +657,6 @@ export const databaseService = {
     }
   },
 
-  /**
-   * Atualiza registros em uma tabela
-   */
   async update(table, data, where, params = []) {
     const setClause = Object.keys(data)
       .map(key => `${key} = ?`)
@@ -681,9 +672,7 @@ export const databaseService = {
     }
   },
 
-  /**
-   * Remove registros de uma tabela
-   */
+ 
   async delete(table, where, params = []) {
     const sql = `DELETE FROM ${table} WHERE ${where}`;
     
@@ -695,21 +684,17 @@ export const databaseService = {
     }
   },
 
-  /**
-   * Insere um registro com UUID como ID
-   */
+  
   async insertWithUUID(table, data) {
     const id = this.generateUUID();
     const result = await this.insert(table, { id, ...data });
     return { ...result, id };
   },
 
-  /**
-   * Obtém a última data de sincronização de uma tabela
-   */
+ 
   async getLastSync(table) {
     try {
-      // Verifica se a tabela existe
+      
       const tableCheck = await this.executeQuery(
         `SELECT name FROM sqlite_master WHERE type='table' AND name=?`, 
         [table]
@@ -720,7 +705,7 @@ export const databaseService = {
         return null;
       }
 
-      // Verifica se a coluna last_sync existe
+      
       const columnCheck = await this.executeQuery(
         `PRAGMA table_info(${table})`
       );
@@ -743,12 +728,10 @@ export const databaseService = {
     }
   },
 
-  /**
-   * Atualiza a data de sincronização para uma tabela
-   */
+  
   async updateLastSync(table, date = new Date().toISOString()) {
     try {
-      // Verifica se a tabela tem a coluna last_sync
+     
       const columnCheck = await this.executeQuery(
         `PRAGMA table_info(${table})`
       );
@@ -772,9 +755,7 @@ export const databaseService = {
     }
   },
 
-  /**
-   * Obtém registros que precisam ser sincronizados
-   */
+  
   async getUnsyncedRecords(table) {
     try {
       const result = await this.executeQuery(
@@ -787,9 +768,7 @@ export const databaseService = {
     }
   },
 
-  /**
-   * Gera um UUID v4
-   */
+  
   generateUUID() {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
       const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
@@ -797,9 +776,7 @@ export const databaseService = {
     });
   },
 
-  /**
-   * Verifica se uma tabela existe
-   */
+  
   async tableExists(tableName) {
     try {
       const result = await this.executeQuery(
@@ -813,9 +790,6 @@ export const databaseService = {
     }
   },
 
-  /**
-   * Obtém informações sobre as colunas de uma tabela
-   */
   async getTableColumns(tableName) {
     try {
       const result = await this.executeQuery(`PRAGMA table_info(${tableName})`);
@@ -826,9 +800,7 @@ export const databaseService = {
     }
   },
 
-  /**
-   * Executa uma transação
-   */
+
   async transaction(operations) {
     try {
       await db.execAsync('BEGIN TRANSACTION');
@@ -852,14 +824,10 @@ export const databaseService = {
   }
 };
 
-/**
- * Obtém a instância do banco de dados
- */
+
 export const getDbInstance = () => db;
 
-/**
- * Fecha a conexão com o banco de dados
- */
+
 export const closeDatabase = async () => {
   if (db) {
     await db.closeAsync();
@@ -868,9 +836,7 @@ export const closeDatabase = async () => {
   }
 };
 
-/**
- * Deleta o banco de dados (apenas para desenvolvimento)
- */
+
 export const deleteDatabase = async () => {
   if (db) {
     await db.closeAsync();
@@ -879,3 +845,4 @@ export const deleteDatabase = async () => {
     console.log('Banco de dados deletado');
   }
 };
+

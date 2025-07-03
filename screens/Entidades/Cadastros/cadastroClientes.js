@@ -138,8 +138,8 @@ export default function CadastroClientes({ navigation }) {
       }
 
       const diasEntregaFormatado = state.isConnected
-        ? formData.diasEntrega.map((dia) => diasSemana.indexOf(dia)) // Supabase: array de números
-        : formData.diasEntrega.join(',');                             // SQLite: string
+  ? formData.diasEntrega.map((dia) => diasSemana.indexOf(dia)) // Supabase: array de números
+  : formData.diasEntrega.map((dia) => diasSemana.indexOf(dia)); // SQLite: salvar como JSON string
 
       const clienteData = {
         nome: formData.nome.trim(),

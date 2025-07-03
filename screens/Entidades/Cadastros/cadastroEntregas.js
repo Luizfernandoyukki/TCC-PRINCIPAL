@@ -228,7 +228,25 @@ export default function CadastroEntregas({ navigation, route }) {
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior="padding" keyboardVerticalOffset={100}>
-      <StatusBar backgroundColor="#043b57" barStyle="light-content" />
+            <StatusBar backgroundColor="#043b57" barStyle="light-content" />
+            <View style={styles.header}>
+              <View style={styles.headerContent}>
+                <TouchableOpacity onPress={() => navigation.goBack()}>
+                  <Image 
+                    source={require('../../../Assets/logo.png')}
+                    style={styles.logo}
+                    resizeMode="contain"
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => navigation.navigate('Error')}>
+                  <Image 
+                    source={require('../../../Assets/alerta.png')} 
+                    style={styles.alerta}
+                    resizeMode="contain"
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>REGISTRO DE ENTREGAS</Text>

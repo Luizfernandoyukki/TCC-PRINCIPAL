@@ -181,7 +181,7 @@ const traduzirDiasEntrega = (diasString) => {
             <View style={styles.actionButtons}>
               <TouchableOpacity
                 style={[styles.actionButton, styles.editButton]}
-                onPress={() => navigation.navigate('EditarCliente', { cliente: item })}
+                onPress={() => navigation.navigate('EditarCliente', { clienteId: item.id })}
               >
                 <Text style={styles.actionButtonText}>Editar</Text>
               </TouchableOpacity>
