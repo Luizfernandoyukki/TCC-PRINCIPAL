@@ -89,16 +89,14 @@ export default function FuncoesScreen({ navigation }) {
         <View style={styles.itemActions}>
           <TouchableOpacity 
             onPress={() => handleDelete(item.id)}
-            style={{ marginLeft: 15 }}
+            style={styles.actionButton}
           >
-            <Text style={[styles.actionText, { color: '#f44336' }]}>Excluir</Text>
+            <Text style={[styles.actionButtonText, { color: '#f44336' }]}>Excluir</Text>
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
     </View>
   );
-
-  // Filtrar funções pelo nome
   const funcoesFiltradas = funcoes.filter(item =>
     item.nome.toLowerCase().includes(filterText.toLowerCase())
   );

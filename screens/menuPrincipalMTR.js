@@ -20,7 +20,7 @@ export default function MenuPrincipalMTRScreen({ navigation }) {
   const menuItems = [
     'ENTREGAS',
     'CLIENTES',
-    'ROTAS',
+    'ETREGUES',
     'VEÍCULOS'
   ];
 
@@ -28,7 +28,7 @@ export default function MenuPrincipalMTRScreen({ navigation }) {
     const screens = [
       'EntregasMTR',
       'ClientesMTR',
-      'RotasMTR',
+      'EntregarMTR',
       'VeiculosMTR'
     ];
     navigation.navigate(screens[index]);

@@ -21,6 +21,7 @@ export default function MenuPrincipalEXPScreen({ navigation }) {
     'ESTOQUE',
     'ENTREGAS',
     'ENTRADAS',
+    'DESPACHO',
     'DEVOLUÇÕES',
     'SAÍDAS'
   ];
@@ -30,6 +31,7 @@ export default function MenuPrincipalEXPScreen({ navigation }) {
       'Estoque1',
       'Entregas1',
       'Entradas1',
+      'Despacho1',
       'Devolucao1',
       'Saidas1'
     ];

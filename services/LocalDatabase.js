@@ -128,7 +128,7 @@ if (!tableCheck || tableCheck.length === 0) {
       status TEXT DEFAULT 'ativo',
       telefone_id INTEGER,
       email_id INTEGER,
-      dias_entrega TEXT,
+      dias_entrega INTERGER[],
       FOREIGN KEY (endereco_id) REFERENCES endereco(id),
       FOREIGN KEY (telefone_id) REFERENCES telefone(id),
       FOREIGN KEY (email_id) REFERENCES email(id)
@@ -149,32 +149,146 @@ if (!tableCheck || tableCheck.length === 0) {
         FOREIGN KEY (funcionario_id) REFERENCES funcionario(id)
       );
 
-    CREATE TABLE IF NOT EXISTS rota (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nome TEXT NOT NULL,
-    destino TEXT NOT NULL,
-    distancia REAL,
-    horario_partida TEXT NOT NULL,
-    veiculo_id INTEGER NOT NULL,
-    funcionario_id TEXT NOT NULL,
-    data_rota TEXT NOT NULL DEFAULT CURRENT_DATE,
-    observacao TEXT,
-    status TEXT NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente', 'em_andamento', 'concluida', 'cancelada')),
-    tempo_medio_minutos INTEGER NOT NULL DEFAULT 0 CHECK (tempo_medio_minutos >= 0),
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    last_sync TEXT,
-    FOREIGN KEY (veiculo_id) REFERENCES veiculo(id),
-    FOREIGN KEY (funcionario_id) REFERENCES funcionario(id)
-);
-CREATE TABLE IF NOT EXISTS rota_cliente (
-    rota_id INTEGER NOT NULL,
-    cliente_id INTEGER NOT NULL,
-    PRIMARY KEY (rota_id, cliente_id),
-    FOREIGN KEY (rota_id) REFERENCES rota(id),
-    FOREIGN KEY (cliente_id) REFERENCES cliente(id)
+      CREATE TABLE IF NOT EXISTS despacho_reserva (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  data_criacao TEXT DEFAULT CURRENT_TIMESTAMP,
+  responsavel_id TEXT NOT NULL,
+  observacao TEXT,
+  FOREIGN KEY (responsavel_id) REFERENCES funcionario(id)
 );
 
+-- Tabela: Itens do despacho
+CREATE TABLE IF NOT EXISTS despacho_reserva_item (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  despacho_id TEXT NOT NULL,
+  estoque_id INTEGER NOT NULL,
+  quantidade_reservada INTEGER NOT NULL CHECK (quantidade_reservada > 0),
+  quantidade_consumida INTEGER NOT NULL DEFAULT 0 CHECK (quantidade_consumida >= 0),
+  observacao TEXT,
+  FOREIGN KEY (despacho_id) REFERENCES despacho_reserva(id),
+  FOREIGN KEY (estoque_id) REFERENCES estoque(id)
+);
+
+-- Tabela: Consumo dos itens
+CREATE TABLE IF NOT EXISTS despacho_consumo (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  reserva_item_id TEXT NOT NULL,
+  cliente_id INTEGER NOT NULL,
+  funcionario_id TEXT NOT NULL,
+  quantidade INTEGER NOT NULL CHECK (quantidade > 0),
+  data_consumo TEXT DEFAULT CURRENT_TIMESTAMP,
+  observacao TEXT,
+  FOREIGN KEY (reserva_item_id) REFERENCES despacho_reserva_item(id),
+  FOREIGN KEY (cliente_id) REFERENCES cliente(id),
+  FOREIGN KEY (funcionario_id) REFERENCES funcionario(id)
+);
+
+-- ================================
+-- TRIGGERS PARA FUNCIONALIDADE
+-- ================================
+
+-- Trigger: Atualizar quantidade_consumida
+CREATE TRIGGER IF NOT EXISTS trg_atualizar_quantidade_consumida
+AFTER INSERT ON despacho_consumo
+BEGIN
+  UPDATE despacho_reserva_item
+  SET quantidade_consumida = quantidade_consumida + NEW.quantidade
+  WHERE id = NEW.reserva_item_id;
+END;
+
+-- Trigger: Impedir consumo maior que reservado
+CREATE TRIGGER IF NOT EXISTS trg_validar_limite_consumo
+BEFORE INSERT ON despacho_consumo
+BEGIN
+  SELECT CASE
+    WHEN (
+      (SELECT quantidade_reservada - quantidade_consumida
+       FROM despacho_reserva_item
+       WHERE id = NEW.reserva_item_id
+      ) < NEW.quantidade
+    )
+    THEN RAISE(ABORT, 'Consumo excede o limite reservado')
+  END;
+END;
+
+-- Trigger: Atualizar estoque.quantidade_reservada automaticamente
+CREATE TRIGGER IF NOT EXISTS trg_update_quantidade_reservada_insert
+AFTER INSERT ON despacho_reserva_item
+BEGIN
+  UPDATE estoque
+  SET quantidade_reservada = (
+    SELECT COALESCE(SUM(quantidade_reservada), 0)
+    FROM despacho_reserva_item
+    WHERE estoque_id = NEW.estoque_id
+  )
+  WHERE id = NEW.estoque_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_update_quantidade_reservada_update
+AFTER UPDATE ON despacho_reserva_item
+BEGIN
+  UPDATE estoque
+  SET quantidade_reservada = (
+    SELECT COALESCE(SUM(quantidade_reservada), 0)
+    FROM despacho_reserva_item
+    WHERE estoque_id = NEW.estoque_id
+  )
+  WHERE id = NEW.estoque_id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_update_quantidade_reservada_delete
+AFTER DELETE ON despacho_reserva_item
+BEGIN
+  UPDATE estoque
+  SET quantidade_reservada = (
+    SELECT COALESCE(SUM(quantidade_reservada), 0)
+    FROM despacho_reserva_item
+    WHERE estoque_id = OLD.estoque_id
+  )
+  WHERE id = OLD.estoque_id;
+END;
+
+-- Trigger: Criar entrega automática após consumo
+CREATE TRIGGER IF NOT EXISTS trg_criar_entrega_automatica
+AFTER INSERT ON despacho_consumo
+BEGIN
+  INSERT INTO entrega (
+    id,
+    estoque_id,
+    quantidade,
+    cliente_id,
+    veiculo_id,
+    funcionario_id,
+    data_saida,
+    data_entrega,
+    status,
+    criado_em,
+    observacao,
+    nota,
+    tipo_pagamento,
+    valor_unitario,
+    valor_total
+  )
+  SELECT
+    lower(hex(randomblob(16))),
+    dri.estoque_id,
+    NEW.quantidade,
+    NEW.cliente_id,
+    NULL,
+    NEW.funcionario_id,
+    NEW.data_consumo,
+    CURRENT_TIMESTAMP,
+    'entregue',
+    CURRENT_TIMESTAMP,
+    NEW.observacao,
+    0,
+    'dinheiro',
+    e.valor,
+    e.valor * NEW.quantidade
+  FROM despacho_reserva_item dri
+  JOIN estoque e ON e.id = dri.estoque_id
+  WHERE dri.id = NEW.reserva_item_id;
+END;
       -- Tabela de Funcionários
       CREATE TABLE IF NOT EXISTS funcionario (
         id TEXT PRIMARY KEY,
@@ -196,7 +310,6 @@ CREATE TABLE IF NOT EXISTS rota_cliente (
         genero_id INTEGER,
         cargo_id INTEGER,
         hierarquia_id INTEGER,
-        rota_id INTEGER,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
         last_sync TEXT,
@@ -208,7 +321,6 @@ CREATE TABLE IF NOT EXISTS rota_cliente (
         FOREIGN KEY (genero_id) REFERENCES genero(id),
         FOREIGN KEY (cargo_id) REFERENCES cargo(id),
         FOREIGN KEY (superior_id) REFERENCES funcionario(id),
-        FOREIGN KEY (rota_id) REFERENCES rota(id),
         FOREIGN KEY (hierarquia_id) REFERENCES hierarquia(id),
         FOREIGN KEY (endereco_id) REFERENCES endereco(id),
         FOREIGN KEY (funcao_id) REFERENCES funcao(id)
@@ -549,51 +661,6 @@ CREATE TABLE IF NOT EXISTS rota_cliente (
             NEW.nota
           );
         END;
-
-      -- Triggers para verificação de rotas
-      CREATE TRIGGER IF NOT EXISTS antes_inserir_rota
-      BEFORE INSERT ON rota
-      BEGIN
-        -- Verifica conflito de veículo
-        SELECT CASE WHEN EXISTS (
-          SELECT 1 FROM rota 
-          WHERE veiculo_id = NEW.veiculo_id
-          AND id <> NEW.id
-          AND data_rota = NEW.data_rota
-          AND status = 'em_andamento'
-        ) THEN RAISE(ABORT, 'Veículo já está em outra rota nesta data') END;
-        
-        -- Verifica conflito de motorista
-        SELECT CASE WHEN EXISTS (
-          SELECT 1 FROM rota 
-          WHERE funcionario_id = NEW.funcionario_id
-          AND id <> NEW.id
-          AND data_rota = NEW.data_rota
-          AND status = 'em_andamento'
-        ) THEN RAISE(ABORT, 'Motorista já está em outra rota nesta data') END;
-      END;
-
-      CREATE TRIGGER IF NOT EXISTS antes_atualizar_rota
-      BEFORE UPDATE ON rota
-      BEGIN
-        -- Verifica conflito de veículo
-        SELECT CASE WHEN EXISTS (
-          SELECT 1 FROM rota 
-          WHERE veiculo_id = NEW.veiculo_id
-          AND id <> NEW.id
-          AND data_rota = NEW.data_rota
-          AND status = 'em_andamento'
-        ) THEN RAISE(ABORT, 'Veículo já está em outra rota nesta data') END;
-        
-        -- Verifica conflito de motorista
-        SELECT CASE WHEN EXISTS (
-          SELECT 1 FROM rota 
-          WHERE funcionario_id = NEW.funcionario_id
-          AND id <> NEW.id
-          AND data_rota = NEW.data_rota
-          AND status = 'em_andamento'
-        ) THEN RAISE(ABORT, 'Motorista já está em outra rota nesta data') END;
-      END;
     `);
 
     console.log('Banco de dados inicializado com sucesso');

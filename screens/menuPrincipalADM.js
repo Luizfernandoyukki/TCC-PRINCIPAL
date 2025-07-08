@@ -16,11 +16,12 @@ export default function MenuPrincipalADMScreen({ navigation }) {
     'CLIENTES',
     'FUNCIONARIOS',
     'ENTREGAS',
-    'ROTAS',
+    'DESPACHO',
     'BALANÇO',
     'VEÍCULOS',
     'DEVOLUÇÕES',
     'PEDIDOS',
+    'ENTREGADOS',
     'SAIR'
   ];
 
@@ -30,11 +31,13 @@ export default function MenuPrincipalADMScreen({ navigation }) {
     'Clientes',
     'Funcionarios',
     'Entregas',
-    'Rotas',
+    'Despacho',
     'Balanco',
     'Veiculos',
     'Devolucao',
-    'Pedidos'
+    'Pedidos',
+    'Entregar'
+
   ];
 
   useEffect(() => {

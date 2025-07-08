@@ -12,10 +12,13 @@ import TelaInicialScreen from './screens/TelaInicial';
 import BalancoScreen from './screens/Entidades/Balanco';
 import ClientesScreen from './screens/Entidades/Clientes';
 import ClientesScreenMTR from './screens/Entidades/ClientesMTR';
+import DespachoScreen from './screens/Entidades/Despacho';
+import Despacho1Screen from './screens/Entidades/Despacho1';
 import DevolucaoScreen from './screens/Entidades/Devolucao';
 import DevolucaoScreen1 from './screens/Entidades/Devolucao1';
 import EntradasScreen from './screens/Entidades/Entradas';
 import EntradasScreen1 from './screens/Entidades/Entradas1';
+import EntregarScreen from './screens/Entidades/EntregarMTR';
 import EntregasScreen from './screens/Entidades/Entregas';
 import EntregasScreen1 from './screens/Entidades/Entregas1';
 import EntregasScreenMTR from './screens/Entidades/EntregasMTR';
@@ -27,8 +30,6 @@ import FuncionariosScreen from './screens/Entidades/funcionarios';
 import FuncoesScreen from './screens/Entidades/Funcoes';
 import PedidosScreen from './screens/Entidades/Pedidos';
 import PedidosScreenPDO from './screens/Entidades/PedidosPDO';
-import RotasScreen from './screens/Entidades/Rotas';
-import RotasScreenMTR from './screens/Entidades/RotasMTR';
 import SaidasScreen from './screens/Entidades/Saidas';
 import SaidasScreen1 from './screens/Entidades/Saidas1';
 import VeiculosScreen from './screens/Entidades/Veiculos';
@@ -36,20 +37,22 @@ import VeiculosScreenMTR from './screens/Entidades/VeiculosMTR';
 
 import CadastroBalanco from './screens/Entidades/Cadastros/cadastroBalanco';
 import CadastroClientes from './screens/Entidades/Cadastros/cadastroClientes';
+import CadastroDespacho from './screens/Entidades/Cadastros/cadastroDespacho';
 import CadastroDevolucoes from './screens/Entidades/Cadastros/cadastroDevolucoes';
 import CadastroEntrada from './screens/Entidades/Cadastros/cadastroEntradas';
+/*import CadastroEntregar from './screens/Entidades/Cadastros/cadastroEntregar';*/
 import CadastroEntrega from './screens/Entidades/Cadastros/cadastroEntregas';
 import CadastroEstoque from './screens/Entidades/Cadastros/cadastroEstoque';
 import CadastroFuncionariosScreen from './screens/Entidades/Cadastros/cadastroFuncionario';
 import CadastroFuncoes from './screens/Entidades/Cadastros/cadastroFuncoes';
 import CadastroPedidos from './screens/Entidades/Cadastros/cadastroPedidos';
-import CadastroRotas from './screens/Entidades/Cadastros/cadastroRotas';
 import CadastroSaida from './screens/Entidades/Cadastros/cadastroSaidas';
 import CadastroVeiculos from './screens/Entidades/Cadastros/cadastroVeiculos';
 
 
 
 import EditarClienteScreen from './screens/Entidades/Editar/EditarCliente';
+/*import EditarDespacho from './screens/Entidades/Editar/EditarDespacho';*/
 import EditarentregaScreen from './screens/Entidades/Editar/EditarEntrega';
 import EditarEstoqueScreen from './screens/Entidades/Editar/EditarEstoque';
 import EditarFuncionarioScreen from './screens/Entidades/Editar/EditarFuncionario';
@@ -75,7 +78,8 @@ export const CADASTRO_ROUTES = [
   { name: 'CadastroEntrada', component: CadastroEntrada },
   { name: 'CadastroSaida', component: CadastroSaida },
   { name: 'CadastroVeiculos', component: CadastroVeiculos },
-  { name: 'CadastroRotas', component: CadastroRotas },
+  {name: 'CadastroDespacho', component: CadastroDespacho},
+  /*{name: 'CadastroEntregar', component: CadastroEntregar},*/
   { name: 'CadastroPedidos', component: CadastroPedidos },
   { name: 'CadastroFuncoes', component: CadastroFuncoes },
   { name: 'CadastroDevolucoes', component: CadastroDevolucoes },
@@ -92,10 +96,14 @@ export const PROTECTED_ROUTES = [
 
   {name: 'EditarEstoque', component: EditarEstoqueScreen},
   {name: 'EditarFuncionario', component: EditarFuncionarioScreen},
- {name: 'EditarEntrega', component: EditarentregaScreen},
-{name: 'EditarCliente', component: EditarClienteScreen},
+  {name: 'EditarEntrega', component: EditarentregaScreen},
+  {name: 'EditarCliente',  component: EditarClienteScreen},
+  /*{name: 'EditarDespacho', component: EditarDespacho},*/
 
   { name: 'Estoque', component: EstoqueScreen },
+  {name:'Despacho', component: DespachoScreen },
+  {name:'Despacho1', component: Despacho1Screen },
+  {name:'Entregar', component: EntregarScreen},
   { name: 'Estoque1', component: EstoqueScreen1 },
   { name: 'EstoquePDO', component: EstoqueScreenPDO },
   { name: 'Entregas', component: EntregasScreen },
@@ -111,8 +119,7 @@ export const PROTECTED_ROUTES = [
   { name: 'Clientes', component: ClientesScreen },
   { name: 'Funcionarios', component: FuncionariosScreen },
   { name: 'Funcoes', component: FuncoesScreen },
-  { name: 'Rotas', component: RotasScreen },
-  { name: 'RotasMTR', component: RotasScreenMTR },
+  
   { name: 'Pedidos', component: PedidosScreen },
   { name: 'PedidosPDO', component: PedidosScreenPDO },
   { name: 'Entradas', component: EntradasScreen },

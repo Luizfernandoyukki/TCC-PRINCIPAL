@@ -948,6 +948,52 @@ modalContainer: {
   backgroundColor: '#fff',
   padding: 20,
 },
+modalConteiner2:{
+   flex: 1,
+  backgroundColor: '#fff',
+  padding: 20,
+},
+entregasButton: {
+    backgroundColor: '#f0ad4e',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  viewButton: {
+    backgroundColor: '#5bc0de',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  filterMenu: {
+    position: 'absolute',
+    right: 20,
+    top: 60,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    paddingVertical: 4,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    width: 150,
+  },
+  filterMenuItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  filterMenuItemActive: {
+    backgroundColor: '#043b57',
+  },
+  filterMenuText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  filterMenuTextActive: {
+    color: 'white',
+  },
 modalTitle: {
   fontSize: 20,
   fontWeight: 'bold',
