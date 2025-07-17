@@ -10,7 +10,7 @@ import styles from '../../../styles/EstilosdeEntidade';
 
 import { maskCep, maskCnpj, maskCpf, maskPhone } from '../../../utils/masks';
 
-const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+const dias = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 
 export default function CadastroClientes({ navigation }) {
   const [formData, setFormData] = useState({
@@ -79,99 +79,122 @@ export default function CadastroClientes({ navigation }) {
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) return;
-    const cepLimpo = endereco.cep.replace(/\D/g, '');
-    const onlyNumbers = (str) => str.replace(/\D/g, '');
+  if (!validateForm()) return;
 
+  const onlyNumbers = (str) => str.replace(/\D/g, '');
+  const cepLimpo = onlyNumbers(endereco.cep);
 
-    setLoading(true);
-    try {
-      const enderecoData = {
-        cep: endereco.cep ? endereco.cep.replace(/\D/g, '') : null, // remove tudo que nao eh digito
-        uf: endereco.uf.trim(),
-        cidade: endereco.cidade.trim(),
-        bairro: endereco.bairro.trim(),
-        rua: endereco.rua.trim(),
-        numero: endereco.numero.trim(),
-        complemento: endereco.complemento.trim() || null,
-        tipo: endereco.tipo.trim() || null
+  setLoading(true);
+  try {
+    const enderecoData = {
+      cep: cepLimpo,
+      uf: endereco.uf.trim(),
+      cidade: endereco.cidade.trim(),
+      bairro: endereco.bairro.trim(),
+      rua: endereco.rua.trim(),
+      numero: endereco.numero.trim(),
+      complemento: endereco.complemento?.trim() || null,
+      tipo: endereco.tipo?.trim() || null
+    };
+
+    let endereco_id, telefone_id, email_id, cliente_id;
+
+    const state = await NetInfo.fetch();
+    const isOnline = state.isConnected;
+
+    if (isOnline) {
+      // SUPABASE
+      const { data: enderecoResult, error: enderecoError } = await supabase
+        .from('endereco')
+        .insert([enderecoData])
+        .select('id')
+        .single();
+      if (enderecoError) throw enderecoError;
+      endereco_id = enderecoResult.id;
+
+      const { data: telefoneResult, error: telError } = await supabase
+        .from('telefone')
+        .insert([{ numero: telefone.trim() }])
+        .select('id')
+        .single();
+      if (telError) throw telError;
+      telefone_id = telefoneResult.id;
+
+      const { data: emailResult, error: emailError } = await supabase
+        .from('email')
+        .insert([{ email: email.trim() }])
+        .select('id')
+        .single();
+      if (emailError) throw emailError;
+      email_id = emailResult.id;
+
+      // Inserir cliente
+      const clienteData = {
+        nome: formData.nome.trim(),
+        cpf: formData.tipo === 'física' ? onlyNumbers(formData.cpf) : null,
+        cnpj: formData.tipo === 'jurídica' ? onlyNumbers(formData.cnpj) : null,
+        tipo: formData.tipo,
+        observacao: formData.observacao?.trim() || null,
+        endereco_id,
+        status,
+        telefone_id,
+        email_id
       };
 
-      let endereco_id;
-      let telefone_id;
-      let email_id;
+      const { data: clienteResult, error: clienteError } = await supabase
+        .from('cliente')
+        .insert([clienteData])
+        .select('id')
+        .single();
+      if (clienteError) throw clienteError;
 
-      const state = await NetInfo.fetch();
+      cliente_id = clienteResult.id;
 
-      if (state.isConnected) {
-        const { data: enderecoResult, error: enderecoError } = await supabase
-          .from('endereco')
-          .insert([enderecoData])
-          .select('id')
-          .single();
+      // Inserir dias de entrega
+      const diasEntregaFormatado = formData.diasEntrega.map(dia =>
+        dias.indexOf(dia)
+      ); // [0, 2, 4]
 
-        if (enderecoError) throw enderecoError;
-        endereco_id = enderecoResult.id;
+      const diasEntregaRegistros = diasEntregaFormatado.map(dia => ({
+        cliente_id,
+        dia
+      }));
 
-        const { data: telefoneResult, error: telError } = await supabase
-          .from('telefone')
-          .insert([{ numero: telefone.trim() }])
-          .select('id')
-          .single();
+      const { error: diasEntregaError } = await supabase
+        .from('cliente_dias_entrega')
+        .insert(diasEntregaRegistros);
+      if (diasEntregaError) throw diasEntregaError;
 
-        if (telError) throw telError;
-        telefone_id = telefoneResult.id;
-
-        const { data: emailResult, error: emailError } = await supabase
-          .from('email')
-          .insert([{ email: email.trim() }])
-          .select('id')
-          .single();
-
-        if (emailError) throw emailError;
-        email_id = emailResult.id;
-
-      } else {
-        endereco_id = await databaseService.insertWithUUID('endereco', enderecoData);
-        telefone_id = await databaseService.insertOrSelect('telefone', { numero: telefone.trim() });
-        email_id = await databaseService.insertOrSelect('email', { endereco: email.trim() });
-      }
-
-      const diasEntregaFormatado = state.isConnected
-  ? formData.diasEntrega.map((dia) => diasSemana.indexOf(dia)) // Supabase: array de números
-  : formData.diasEntrega.map((dia) => diasSemana.indexOf(dia)); // SQLite: salvar como JSON string
+    } else {
+      // SQLITE
+      endereco_id = await databaseService.insertWithUUID('endereco', enderecoData);
+      telefone_id = await databaseService.insertOrSelect('telefone', { numero: telefone.trim() });
+      email_id = await databaseService.insertOrSelect('email', { email: email.trim() });
 
       const clienteData = {
         nome: formData.nome.trim(),
-        cpf: formData.tipo === 'física' && formData.cpf ? onlyNumbers(formData.cpf) : null,
-        cnpj: formData.tipo === 'jurídica' && formData.cnpj ? onlyNumbers(formData.cnpj) : null,
+        cpf: formData.tipo === 'física' ? onlyNumbers(formData.cpf) : null,
+        cnpj: formData.tipo === 'jurídica' ? onlyNumbers(formData.cnpj) : null,
         tipo: formData.tipo,
         observacao: formData.observacao?.trim() || null,
         endereco_id,
         status,
         telefone_id,
         email_id,
-        dias_entrega: diasEntregaFormatado
+        dias_entrega: JSON.stringify(formData.diasEntrega.map(dia => dias.indexOf(dia)))
       };
 
-
-
-      if (state.isConnected) {
-        const { error: clienteError } = await supabase.from('cliente').insert([clienteData]);
-        if (clienteError) throw clienteError;
-      } else {
-        await databaseService.insertWithUUID('cliente', clienteData);
-      }
-
-      Alert.alert('Sucesso', 'Cliente cadastrado com sucesso!');
-      navigation.goBack();
-    } catch (error) {
-      Alert.alert('Erro', error.message || 'Falha ao cadastrar cliente');
-    } finally {
-      setLoading(false);
+      await databaseService.insertWithUUID('cliente', clienteData);
     }
-  };
 
+    Alert.alert('Sucesso', 'Cliente cadastrado com sucesso!');
+    navigation.goBack();
+  } catch (error) {
+    Alert.alert('Erro', error.message || 'Falha ao cadastrar cliente');
+  } finally {
+    setLoading(false);
+  }
+};
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -280,7 +303,7 @@ export default function CadastroClientes({ navigation }) {
 
           <Text style={styles.label}>Dias de Entrega</Text>
           <View style={styles.checkboxContainer}>
-            {diasSemana.map(dia => (
+            {dias.map(dia => (
               <TouchableOpacity key={dia} onPress={() => toggleDiaEntrega(dia)}>
                 <View style={[styles.radioButton, formData.diasEntrega.includes(dia) && styles.radioButtonSelected]}>
                   <Text style={formData.diasEntrega.includes(dia) ? styles.radioTextSelected : styles.radioText}>

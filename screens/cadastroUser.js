@@ -1,3 +1,4 @@
+import DateTimePicker from '@react-native-community/datetimepicker';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -10,7 +11,6 @@ import {
   View
 } from 'react-native';
 import {
-  Avatar,
   Button,
   Divider,
   Menu,
@@ -152,32 +152,6 @@ export default function CadastroUserScreen({ navigation }) {
 
         {/* Conteúdo com Scroll */}
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          {/* Seção Foto */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>FOTO</Text>
-            <View style={styles.photoContainer}>
-              <TouchableOpacity onPress={pickImage}>
-                {formData.foto ? (
-                  <Avatar.Image 
-                    size={120} 
-                    source={{ uri: formData.foto.uri }} 
-                    style={styles.avatar}
-                  />
-                ) : (
-                  <Avatar.Icon 
-                    size={120} 
-                    icon="camera" 
-                    style={styles.avatarPlaceholder}
-                  />
-                )}
-              </TouchableOpacity>
-              <Text style={styles.photoText}>
-                {formData.foto ? 'Alterar Foto' : 'Adicionar Foto'}
-              </Text>
-            </View>
-          </View>
-
-          {/* Seção Nível de Acesso */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>NÍVEL DE ACESSO</Text>
             <View style={styles.sectionContent}>
@@ -284,7 +258,6 @@ export default function CadastroUserScreen({ navigation }) {
             </View>
           </View>
 
-          {/* Seção Dados Profissionais (somente para não-admins) */}
           {formData.is_admin === false && (
             <View style={styles.section}>
               <Text style={styles.sectionSubtitle}>DADOS PROFISSIONAIS</Text>
@@ -453,7 +426,7 @@ export default function CadastroUserScreen({ navigation }) {
             <Text style={styles.sectionSubtitle}>CONTATOS</Text>
             <View style={styles.sectionContent}>
               <TextInput
-                label="Telefone Principal*"
+                label="Telefone*"
                 value={formData.telefone1}
                 onChangeText={(text) => handleChange('telefone1', text)}
                 style={styles.input}
@@ -463,19 +436,10 @@ export default function CadastroUserScreen({ navigation }) {
                 error={!!errors.telefone1}
               />
               {errors.telefone1 && <Text style={styles.errorText}>{errors.telefone1}</Text>}
+
               
               <TextInput
-                label="Telefone Secundário"
-                value={formData.telefone2}
-                onChangeText={(text) => handleChange('telefone2', text)}
-                style={styles.input}
-                mode="outlined"
-                keyboardType="phone-pad"
-                maxLength={15}
-              />
-              
-              <TextInput
-                label="E-mail Principal*"
+                label="E-mail*"
                 value={formData.email1}
                 onChangeText={(text) => handleChange('email1', text)}
                 style={styles.input}
@@ -485,16 +449,6 @@ export default function CadastroUserScreen({ navigation }) {
                 error={!!errors.email1}
               />
               {errors.email1 && <Text style={styles.errorText}>{errors.email1}</Text>}
-              
-              <TextInput
-                label="E-mail Secundário"
-                value={formData.email2}
-                onChangeText={(text) => handleChange('email2', text)}
-                style={styles.input}
-                mode="outlined"
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
             </View>
           </View>
 

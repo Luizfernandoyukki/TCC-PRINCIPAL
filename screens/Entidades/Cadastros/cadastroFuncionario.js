@@ -1,3 +1,4 @@
+import DateTimePicker from '@react-native-community/datetimepicker';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -10,7 +11,6 @@ import {
   View
 } from 'react-native';
 import {
-  Avatar,
   Button,
   Divider,
   Menu,
@@ -22,7 +22,6 @@ import {
 import useCadastroForm from '../../../script/LogicadeFormulario';
 import headerStyles from '../../../styles/Estilocabecalho';
 import styles from '../../../styles/EstilodeFormulario';
-
 
 export default function CadastroFuncionariosScreen({ navigation }) {
   const [errorMsg, setErrorMsg] = useState('');
@@ -36,7 +35,6 @@ export default function CadastroFuncionariosScreen({ navigation }) {
     handleAdminChange,
     handleChange,
     handleSubmit,
-    pickImage,
     setDatePickerField,
     handleDateChange
   } = useCadastroForm(navigation);
@@ -45,7 +43,7 @@ export default function CadastroFuncionariosScreen({ navigation }) {
   const SelectorMenu = ({ label, value, options, onSelect, error, disabled = false }) => {
     const [visible, setVisible] = useState(false);
     const selectedLabel = options.find(o => o.id === value)?.nome || label;
-    
+
     return (
       <View style={styles.inputContainer}>
         <Menu
@@ -98,22 +96,20 @@ export default function CadastroFuncionariosScreen({ navigation }) {
   );
 
   const onSubmit = async () => {
-  setErrorMsg('');
-  try {
-    setLoading(true);
-    await handleSubmit();
-  } catch (error) {
-    if (error.message?.includes('FetchError') || error.message?.includes('network') || error.message?.includes('timeout')) {
-      console.log('Sem conexão. Salvando localmente...');
-      await cadastrarLocalmente();
-    } else {
-      setErrorMsg(error.message || 'Erro ao cadastrar usuário.');
+    setErrorMsg('');
+    try {
+      setLoading(true);
+      await handleSubmit();
+    } catch (error) {
+      if (error.message?.includes('FetchError') || error.message?.includes('network') || error.message?.includes('timeout')) {
+        console.log('Sem conexão. Salvando localmente...');
+      } else {
+        setErrorMsg(error.message || 'Erro ao cadastrar usuário.');
+      }
+    } finally {
+      setLoading(false);
     }
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   return (
     <Provider>
@@ -145,31 +141,7 @@ export default function CadastroFuncionariosScreen({ navigation }) {
 
         {/* Conteúdo com Scroll */}
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          {/* Seção Foto */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>FOTO</Text>
-            <View style={styles.photoContainer}>
-              <TouchableOpacity onPress={pickImage}>
-                {formData.foto ? (
-                  <Avatar.Image 
-                    size={120} 
-                    source={{ uri: formData.foto.uri }} 
-                    style={styles.avatar}
-                  />
-                ) : (
-                  <Avatar.Icon 
-                    size={120} 
-                    icon="camera" 
-                    style={styles.avatarPlaceholder}
-                  />
-                )}
-              </TouchableOpacity>
-              <Text style={styles.photoText}>
-                {formData.foto ? 'Alterar Foto' : 'Adicionar Foto'}
-              </Text>
-            </View>
-          </View>
-
+        
           {/* Seção Nível de Acesso */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>NÍVEL DE ACESSO</Text>
@@ -458,16 +430,6 @@ export default function CadastroFuncionariosScreen({ navigation }) {
               {errors.telefone1 && <Text style={styles.errorText}>{errors.telefone1}</Text>}
               
               <TextInput
-                label="Telefone Secundário"
-                value={formData.telefone2}
-                onChangeText={(text) => handleChange('telefone2', text)}
-                style={styles.input}
-                mode="outlined"
-                keyboardType="phone-pad"
-                maxLength={15}
-              />
-              
-              <TextInput
                 label="E-mail Principal*"
                 value={formData.email1}
                 onChangeText={(text) => handleChange('email1', text)}
@@ -478,16 +440,6 @@ export default function CadastroFuncionariosScreen({ navigation }) {
                 error={!!errors.email1}
               />
               {errors.email1 && <Text style={styles.errorText}>{errors.email1}</Text>}
-              
-              <TextInput
-                label="E-mail Secundário"
-                value={formData.email2}
-                onChangeText={(text) => handleChange('email2', text)}
-                style={styles.input}
-                mode="outlined"
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
             </View>
           </View>
 

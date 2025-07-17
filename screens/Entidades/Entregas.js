@@ -2,8 +2,16 @@
 import NetInfo from '@react-native-community/netinfo';
 import { useEffect, useState } from 'react';
 import {
-  Alert, FlatList, Image, Modal, Pressable,
-  StatusBar, Text, TextInput, TouchableOpacity, View
+  Alert,
+  FlatList,
+  Image,
+  Modal,
+  Pressable,
+  StatusBar,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { supabase } from '../../contexts/supabaseClient';
 import { databaseService } from '../../services/localDatabase';

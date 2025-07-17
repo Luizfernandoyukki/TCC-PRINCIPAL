@@ -9,14 +9,14 @@ const initialFormData = {
   nome: '',
   dataNascimento: new Date(),
   dataAdmissao: new Date(),
-  genero_id: 1,         
+  genero_id: null,         
   CPF: '',
   ctps: '',
   rg: '',
-  cargaHoraria: '1',   
-  nDependentes: '0',
-  hierarquia_id: 1,    
-  funcao_id: 1,             
+  cargaHoraria: '',   
+  nDependentes: '',
+  hierarquia_id: null,    
+  funcao_id: null,             
   numeroFicha: '',
   numeroAparelho: '',
   cep: '',
@@ -28,9 +28,7 @@ const initialFormData = {
   tipo_endereco: '',
   complemento: '',
   telefone1: '',
-  telefone2: '',
   email1: '',
-  email2: '',
   senha: '',
   confirmarSenha: '',
   is_admin: false,
@@ -60,6 +58,7 @@ export default function useCadastroForm(navigation) {
   useEffect(() => {
     const loadOptions = async () => {
       try {
+        console.log('Carregando opções do banco de dados...');
         const [
           { data: hierarquias, error: hierarquiasError },
           { data: funcoes, error: funcoesError },
@@ -77,12 +76,27 @@ export default function useCadastroForm(navigation) {
         if (funcoesError) throw funcoesError;
         if (superioresError) throw superioresError;
 
+        console.log('Opções carregadas:', {
+          hierarquias: hierarquias?.length,
+          funcoes: funcoes?.length,
+          superiores: superiores?.length
+        });
+
         setOpcoes(prev => ({
           ...prev,
           hierarquias: hierarquias || [],
           funcoes: funcoes || [],
           superiores: superiores || []
         }));
+
+        // Define valores iniciais apenas se não forem administradores
+        setFormData(prev => ({
+          ...prev,
+          genero_id: prev.genero_id || 1,
+          hierarquia_id: prev.is_admin ? null : (hierarquias?.[0]?.id || null),
+          funcao_id: prev.is_admin ? null : (funcoes?.[0]?.id || null)
+        }));
+
       } catch (error) {
         console.error('Erro ao carregar opções:', error);
         Alert.alert('Erro', 'Não foi possível carregar as opções do sistema');
@@ -100,34 +114,33 @@ export default function useCadastroForm(navigation) {
     return isNaN(num) ? null : num;
   };
 
-  const getFirstValidId = (options) => {
-    if (!options || options.length === 0) return 1;
-    for (let i = 1; i <= 10; i++) {
-      if (options.some(opt => opt.id === i)) return i;
-    }
-    const validOption = options.find(opt => typeof opt.id === 'number' && opt.id >= 1 && opt.id <= 10);
-    return validOption ? validOption.id : 1;
-  };
-
   const handleAdminChange = (value) => {
     const isAdmin = value === 'true';
+    console.log('Alterando status de admin para:', isAdmin);
 
     setFormData(prev => ({
       ...prev,
       is_admin: isAdmin,
       is_superior: isAdmin,
       superior_id: null,
-      hierarquia_id: isAdmin ? 1 : prev.hierarquia_id,
-      funcao_id: isAdmin ? 1 : prev.funcao_id,
+      // Reseta hierarquia e função apenas se for admin
+      hierarquia_id: isAdmin ? null : (opcoes.hierarquias[0]?.id || null),
+      funcao_id: isAdmin ? null : (opcoes.funcoes[0]?.id || null)
     }));
+
     setShowSuperiorFields(!isAdmin);
+    setErrors(prev => ({
+      ...prev,
+      hierarquia_id: null,
+      funcao_id: null,
+      superior_id: null
+    }));
   };
 
   const applyMask = (field, value) => {
     switch(field) {
       case 'CPF': return maskCpf(value);
-      case 'telefone1':
-      case 'telefone2': return maskPhone(value);
+      case 'telefone1': return maskPhone(value);
       case 'cep': return maskCep(value);
       case 'dataNascimento':
       case 'dataAdmissao': return maskDate(value);
@@ -264,8 +277,16 @@ export default function useCadastroForm(navigation) {
       'confirmarSenha', 'is_admin'
     ];
 
+    // Campos obrigatórios para não-administradores
     if (!formData.is_admin) {
-      requiredFields.push('hierarquia_id', 'funcao_id');
+      if (!formData.hierarquia_id) {
+        newErrors.hierarquia_id = 'Selecione uma hierarquia';
+        isValid = false;
+      }
+      if (!formData.funcao_id) {
+        newErrors.funcao_id = 'Selecione uma função';
+        isValid = false;
+      }
       if (!formData.superior_id) {
         newErrors.superior_id = 'Selecione um superior hierárquico';
         isValid = false;
@@ -279,26 +300,55 @@ export default function useCadastroForm(navigation) {
       }
     });
 
-    const numericFields = {
-      cargaHoraria: 'Carga horária',
-      nDependentes: 'Número de dependentes',
-      genero_id: 'Gênero'
+    // Validações numéricas
+    const numericValidations = {
+      cargaHoraria: {
+        value: formData.cargaHoraria,
+        min: 1,
+        max: 24,
+        message: 'Carga horária deve ser entre 1 e 24 horas'
+      },
+      nDependentes: {
+        value: formData.nDependentes,
+        min: 0,
+        max: 20,
+        message: 'Número de dependentes deve ser entre 0 e 20'
+      },
+      genero_id: {
+        value: formData.genero_id,
+        min: 1,
+        max: 3,
+        message: 'Selecione um gênero válido'
+      }
     };
+
     if (!formData.is_admin) {
-      numericFields.hierarquia_id = 'Hierarquia';
-      numericFields.funcao_id = 'Função';
+      numericValidations.hierarquia_id = {
+        value: formData.hierarquia_id,
+        message: 'Selecione uma hierarquia válida'
+      };
+      numericValidations.funcao_id = {
+        value: formData.funcao_id,
+        message: 'Selecione uma função válida'
+      };
     }
 
-    Object.entries(numericFields).forEach(([field, name]) => {
-      if (formData[field] === '' || formData[field] === null) {
-        newErrors[field] = `${name} é obrigatório`;
+    Object.entries(numericValidations).forEach(([field, validation]) => {
+      const numValue = safeParseInt(validation.value);
+      
+      if (numValue === null) {
+        newErrors[field] = validation.message;
         isValid = false;
-      } else if (isNaN(safeParseInt(formData[field]))) {
-        newErrors[field] = `${name} deve ser um número válido`;
+      } else if (validation.min !== undefined && numValue < validation.min) {
+        newErrors[field] = validation.message;
+        isValid = false;
+      } else if (validation.max !== undefined && numValue > validation.max) {
+        newErrors[field] = validation.message;
         isValid = false;
       }
     });
 
+    // Validações específicas
     if (formData.senha !== formData.confirmarSenha) {
       newErrors.confirmarSenha = 'As senhas não coincidem';
       isValid = false;
@@ -342,11 +392,11 @@ export default function useCadastroForm(navigation) {
     try {
       setLoading(true);
       console.log('--- INICIANDO CADASTRO ---');
-      console.log('formData inicial:', JSON.stringify(formData));
-      console.log('opcoes:', JSON.stringify(opcoes));
+      console.log('Dados do formulário:', JSON.stringify(formData, null, 2));
+      console.log('Opções disponíveis:', JSON.stringify(opcoes, null, 2));
 
-      console.log('a função abriu');
-       console.log('Tentando criar usuário no Auth...');
+      // Criar usuário no Auth
+      console.log('Criando usuário no Auth...');
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email1,
         password: formData.senha,
@@ -357,22 +407,22 @@ export default function useCadastroForm(navigation) {
           }
         }
       });
-      
-      console.log('Dados do Auth:', { email: formData.email1, password: formData.senha });
-      console.log('Resultado Auth:', { authData, authError });
 
       if (authError) {
-        if (authError.message && authError.message.includes('already registered')) {
+        if (authError.message.includes('already registered')) {
           throw new Error('Este e-mail já está cadastrado. Faça login ou use outro e-mail.');
         }
-        throw authError || new Error('Erro ao criar usuário');
+        throw authError;
       }
-      if (!authData?.user?.id) throw new Error('Falha ao criar usuário');
+
+      if (!authData?.user?.id) {
+        throw new Error('Falha ao criar usuário no sistema de autenticação');
+      }
 
       const userId = authData.user.id;
-      console.log('Usuário criado com id:', userId);
+      console.log('Usuário criado com ID:', userId);
 
-
+      // Verificar se já existe um funcionário com este usuário ou CPF
       const { data: existingFuncionario } = await supabase
         .from('funcionario')
         .select('id')
@@ -380,7 +430,7 @@ export default function useCadastroForm(navigation) {
         .single();
 
       if (existingFuncionario) {
-        throw new Error('Já existe um funcionário cadastrado com este usuário. Faça login ou use outro e-mail.');
+        throw new Error('Já existe um funcionário cadastrado com este usuário.');
       }
 
       const { data: existingCpf } = await supabase
@@ -393,30 +443,16 @@ export default function useCadastroForm(navigation) {
         throw new Error('Já existe um funcionário cadastrado com este CPF.');
       }
 
+      // Upload da foto (se existir)
       let fotoUrl = null;
       if (formData.foto) {
-        console.log('Tentando fazer upload da foto...');
+        console.log('Fazendo upload da foto...');
         fotoUrl = await uploadPhoto(userId);
-        console.log('URL da foto:', fotoUrl);
-      } else {
-        console.log('Nenhuma foto selecionada para upload.');
+        console.log('Foto enviada com URL:', fotoUrl);
       }
 
-      const hierarquiaId = getFirstValidId(opcoes.hierarquias);
-      const funcaoId = getFirstValidId(opcoes.funcoes);
-      console.log('IDs selecionados:', { hierarquiaId, funcaoId});
-
-      console.log('Tentando cadastrar endereço...');
-      console.log('Dados do endereço:', {
-        cep: formData.cep.replace(/\D/g, ''),
-        uf: formData.uf,
-        cidade: formData.cidade,
-        bairro: formData.bairro,
-        rua: formData.rua,
-        numero: formData.numero,
-        complemento: formData.complemento,
-        tipo: formData.tipo_endereco
-      });
+      // Cadastrar endereço
+      console.log('Cadastrando endereço...');
       const { data: endereco, error: endError } = await supabase
         .from('endereco')
         .insert({
@@ -432,120 +468,86 @@ export default function useCadastroForm(navigation) {
         .select()
         .single();
 
-      console.log('Resultado endereço:', { endereco, endError });
-
       if (endError || !endereco) {
         throw endError || new Error('Falha ao cadastrar endereço');
       }
 
+      // Preparar dados do funcionário
       const funcionarioData = {
         id: userId,
-        nome: formData.nome.trim(), 
+        nome: formData.nome.trim(),
         data_nascimento: formData.dataNascimento,
         cpf: formData.CPF.replace(/\D/g, ''),
         ctps: formData.ctps,
         rg: formData.rg,
         data_admissao: formData.dataAdmissao,
-        carga_horaria: (safeParseInt(formData.cargaHoraria) >= 1 && safeParseInt(formData.cargaHoraria) <= 10)
-          ? safeParseInt(formData.cargaHoraria)
-          : 1,
-        numero_dependentes: (safeParseInt(formData.nDependentes) >= 0 && safeParseInt(formData.nDependentes) <= 10)
-          ? safeParseInt(formData.nDependentes)
-          : 0,
+        carga_horaria: safeParseInt(formData.cargaHoraria) || 1,
+        numero_dependentes: safeParseInt(formData.nDependentes) || 0,
         numero_ficha: formData.numeroFicha,
         numero_aparelho: formData.numeroAparelho,
-        hierarquia_id: (safeParseInt(formData.hierarquia_id) >= 1 && safeParseInt(formData.hierarquia_id) <= 10)
-          ? safeParseInt(formData.hierarquia_id)
-          : 1,
-        funcao_id: (safeParseInt(formData.funcao_id) >= 1 && safeParseInt(formData.funcao_id) <= 10)
-          ? safeParseInt(formData.funcao_id)
-          : 1,
-        genero_id: (safeParseInt(formData.genero_id) >= 1 && safeParseInt(formData.genero_id) <= 10)
-          ? safeParseInt(formData.genero_id)
-          : 1,
+        genero_id: formData.genero_id,
         is_admin: formData.is_admin,
         is_superior: formData.is_superior,
         superior_id: formData.superior_id,
         foto_url: fotoUrl,
         endereco_id: endereco.id
       };
-      console.log('Dados do funcionário a serem inseridos:', funcionarioData);
 
-      console.log('Tentando cadastrar funcionário...');
+      // Adicionar hierarquia e função apenas se não for admin
+      if (!formData.is_admin) {
+        funcionarioData.hierarquia_id = formData.hierarquia_id;
+        funcionarioData.funcao_id = formData.funcao_id;
+      }
+
+      console.log('Dados do funcionário:', funcionarioData);
+
+      // Cadastrar funcionário
       const { error: funcError } = await supabase
         .from('funcionario')
         .insert(funcionarioData);
 
-      console.log('Resultado funcionário:', { funcError });
-
       if (funcError) throw funcError;
 
+      // Cadastrar telefone
       if (formData.telefone1) {
-        console.log('Tentando cadastrar telefone principal...');
-        const { error: telefone1Error } = await supabase
+        const { error: telefoneError } = await supabase
           .from('telefone')
           .insert({
-            tipo: 'principal',
             numero: formData.telefone1.replace(/\D/g, ''),
-            funcionario_id: userId
-          });
-        console.log('Resultado telefone principal:', { telefone1Error });
-        if (telefone1Error) throw telefone1Error;
-      }
-
-      if (formData.telefone2) {
-        console.log('Tentando cadastrar telefone secundário...');
-        const { error: telefone2Error } = await supabase
-          .from('telefone')
-          .insert({
-            tipo: 'secundario',
-            numero: formData.telefone2.replace(/\D/g, ''),
-            funcionario_id: userId
-          });
-        console.log('Resultado telefone secundário:', { telefone2Error });
-        if (telefone2Error) throw telefone2Error;
-      }
-
-      if (formData.email1) {
-        console.log('Tentando cadastrar email principal...');
-        const { error: email1Error } = await supabase
-          .from('email')
-          .insert({
             tipo: 'principal',
-            email: formData.email1,
             funcionario_id: userId
           });
-        console.log('Resultado email principal:', { email1Error });
-        if (email1Error) throw email1Error;
+
+        if (telefoneError) throw telefoneError;
       }
 
-      if (formData.email2) {
-        console.log('Tentando cadastrar email secundário...');
-        const { error: email2Error } = await supabase
+      // Cadastrar email
+      if (formData.email1) {
+        const { error: emailError } = await supabase
           .from('email')
           .insert({
-            tipo: 'secundario',
-            email: formData.email2,
+            email: formData.email1,
+            tipo: 'principal',
             funcionario_id: userId
           });
-        console.log('Resultado email secundário:', { email2Error });
-        if (email2Error) throw email2Error;
+
+        if (emailError) throw emailError;
       }
 
-      console.log('Contatos cadastrados com sucesso!');
-
+      console.log('Cadastro realizado com sucesso!');
       Alert.alert('Sucesso', 'Cadastro realizado com sucesso!');
       navigation.navigate('Login');
+
     } catch (error) {
-      console.error('Erro completo:', error, JSON.stringify(error));
+      console.error('Erro no cadastro:', error);
       let errorMessage = 'Falha ao cadastrar. Verifique os dados e tente novamente.';
-      if (error && typeof error === 'object') {
-        if (error.message) errorMessage = error.message;
-        else if (error.details) errorMessage = error.details;
-        else errorMessage = JSON.stringify(error);
+      
+      if (error.message) {
+        errorMessage = error.message;
       } else if (typeof error === 'string') {
         errorMessage = error;
       }
+
       Alert.alert('Erro', errorMessage);
     } finally {
       setLoading(false);

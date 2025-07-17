@@ -1,7 +1,17 @@
 import NetInfo from '@react-native-community/netinfo';
 import { useEffect, useState } from 'react';
-import { Alert, FlatList, Image, Modal, Pressable, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import {
+  Alert,
+  FlatList,
+  Image,
+  Modal,
+  Pressable,
+  StatusBar,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { supabase } from '../../contexts/supabaseClient';
 import { databaseService } from '../../services/localDatabase';
 import styles from '../../styles/EstilosdeEntidade';
@@ -39,55 +49,43 @@ export default function ClientesScreen({ navigation }) {
     setLoading(true);
     try {
       const netState = await NetInfo.fetch();
-
       if (netState.isConnected) {
-        // ONLINE: buscar do Supabase as 4 tabelas
-        const [{ data: clientesSup, error: errClientes },
-          { data: enderecosSup, error: errEnderecos },
-          { data: telefonesSup, error: errTelefones },
-          { data: emailsSup, error: errEmails }] = await Promise.all([
+        const [{ data: clientesSup }, { data: enderecosSup }, { data: telefonesSup }, { data: emailsSup }, { data: diasEntrega }] =
+          await Promise.all([
             supabase.from('cliente').select('*'),
             supabase.from('endereco').select('*'),
             supabase.from('telefone').select('*'),
             supabase.from('email').select('*'),
+            supabase.from('cliente_dias_entrega').select('*'),
           ]);
-        if (errClientes || errEnderecos || errTelefones || errEmails) {
-          throw errClientes || errEnderecos || errTelefones || errEmails;
-        }
 
-        // Montar clientes completos relacionando pelos ids
-        const clientesCompletos = clientesSup.map(c => ({
+        const clientesCompletos = clientesSup.map((c) => ({
           ...c,
-          endereco: enderecosSup.find(e => e.id === c.endereco_id) || null,
-          telefone: telefonesSup.find(t => t.id === c.telefone_id) || null,
-          email: emailsSup.find(em => em.id === c.email_id) || null,
+          endereco: enderecosSup.find((e) => e.id === c.endereco_id) || null,
+          telefone: telefonesSup.find((t) => t.id === c.telefone_id) || null,
+          email: emailsSup.find((em) => em.id === c.email_id) || null,
+          dias_entrega: diasEntrega.filter((d) => d.cliente_id === c.id).map((d) => d.dia_semana),
         }));
 
         setClientes(clientesCompletos);
-        setFilteredClientes(clientesCompletos);
-
       } else {
-        // OFFLINE: buscar do banco local
-        const clientesResult = await databaseService.select('cliente');
-        if (!clientesResult.success) throw new Error('Erro ao buscar clientes locais');
+        const [clientesResult, enderecosResult, telefonesResult, emailsResult, diasEntregaResult] = await Promise.all([
+          databaseService.select('cliente'),
+          databaseService.select('endereco'),
+          databaseService.select('telefone'),
+          databaseService.select('email'),
+          databaseService.select('cliente_dias_entrega'),
+        ]);
 
-        const enderecosResult = await databaseService.select('endereco');
-        const telefonesResult = await databaseService.select('telefone');
-        const emailsResult = await databaseService.select('email');
-
-        const enderecos = enderecosResult.success ? enderecosResult.data : [];
-        const telefones = telefonesResult.success ? telefonesResult.data : [];
-        const emails = emailsResult.success ? emailsResult.data : [];
-
-        const clientesCompletos = clientesResult.data.map(c => ({
+        const clientesCompletos = clientesResult.data.map((c) => ({
           ...c,
-          endereco: enderecos.find(e => e.id === c.endereco_id) || null,
-          telefone: telefones.find(t => t.id === c.telefone_id) || null,
-          email: emails.find(em => em.id === c.email_id) || null,
+          endereco: enderecosResult.data.find((e) => e.id === c.endereco_id) || null,
+          telefone: telefonesResult.data.find((t) => t.id === c.telefone_id) || null,
+          email: emailsResult.data.find((em) => em.id === c.email_id) || null,
+          dias_entrega: diasEntregaResult.data.filter((d) => d.cliente_id === c.id).map((d) => d.dia_semana),
         }));
 
         setClientes(clientesCompletos);
-        setFilteredClientes(clientesCompletos);
       }
     } catch (error) {
       Alert.alert('Erro', 'Falha ao carregar clientes: ' + error.message);
@@ -99,7 +97,7 @@ export default function ClientesScreen({ navigation }) {
   const handleFilter = () => {
     if (!search.trim()) return setFilteredClientes(clientes);
     const lowerSearch = search.toLowerCase();
-    const filtered = clientes.filter(cliente => {
+    const filtered = clientes.filter((cliente) => {
       switch (filterType) {
         case 'nome': return cliente.nome?.toLowerCase().includes(lowerSearch);
         case 'tipo': return cliente.tipo?.toLowerCase().includes(lowerSearch);
@@ -114,121 +112,77 @@ export default function ClientesScreen({ navigation }) {
     setFilteredClientes(filtered);
   };
 
-  const renderMapa = (endereco) => {
-    if (endereco?.latitude && endereco?.longitude) {
-      return (
-        <MapView
-          style={{ height: 200, marginVertical: 10 }}
-          initialRegion={{
-            latitude: parseFloat(endereco.latitude),
-            longitude: parseFloat(endereco.longitude),
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          }}
-        >
-          <Marker
-            coordinate={{
-              latitude: parseFloat(endereco.latitude),
-              longitude: parseFloat(endereco.longitude),
-            }}
-            title={endereco.rua}
-            description={endereco.cidade}
-          />
-        </MapView>
-      );
-    }
-    return <Text style={{ marginVertical: 10, fontStyle: 'italic' }}>Endereço não disponível no mapa.</Text>;
-  };
-
-  const renderClienteItem = ({ item }) => {
-  const cpfCnpj = item.tipo === 'jurídica' ? item.cnpj?.toUpperCase() || '-' : item.cpf?.toUpperCase() || '-';
-  const enderecoFormatado = item.endereco
-    ? `${item.endereco.rua}, ${item.endereco.numero} - ${item.endereco.bairro}, ${item.endereco.cidade}/${item.endereco.uf}`
-    : '-';
-const traduzirDiasEntrega = (diasString) => {
-  if (!diasString) return '-';
-  
-  const diasMap = {
-    'seg': 'Segunda',
-    'ter': 'Terça',
-    'qua': 'Quarta',
-    'qui': 'Quinta',
-    'sex': 'Sexta',
-    'sab': 'Sábado',
-    'dom': 'Domingo'
-  };
-  
-  return diasString.split(',')
-    .map(dia => diasMap[dia.trim().toLowerCase()] || dia.trim())
-    .join(', ');
-};
-  return (
-    <View style={styles.itemContainer}>
-      <TouchableOpacity style={styles.itemBox} onPress={() => setExpandedId(expandedId === item.id ? null : item.id)}>
-        <View style={styles.itemHeader}>
-          <Text style={styles.itemTitle}>{item.nome}</Text>
-        </View>
-
-        {expandedId === item.id && (
-          <View style={styles.expandedContent}>
-            <Text style={styles.itemDetail}>Tipo: {item.tipo}</Text>
-            <Text style={styles.itemDetail}>CPF/CNPJ: {cpfCnpj}</Text>
-            <Text style={styles.itemDetail}>Telefone: {item.telefone?.numero || '-'}</Text>
-            <Text style={styles.itemDetail}>Email: {item.email?.email || '-'}</Text>
-            <Text style={styles.itemDetail}>Endereço: {enderecoFormatado}</Text>
-            {renderMapa(item.endereco)}
-
-            <View style={styles.actionButtons}>
-    
-              <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: 'blue' }]}
-                onPress={() => navigation.navigate('Pedidos')}
-              >
-                <Text style={styles.actionButtonText}>Pedidos</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: '#808080' }]}
-                onPress={() => openModal(item)}
-              >
-                <Text style={styles.actionButtonText}>Visualizar Completo</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-      </TouchableOpacity>
-    </View>
-  );
-};
-
   const openModal = (cliente) => {
     setModalCliente(cliente);
     setModalVisible(true);
   };
 
   const closeModal = () => {
-    setModalVisible(false);
     setModalCliente(null);
+    setModalVisible(false);
   };
 
-const traduzirDiasEntrega = (diasArray) => {
-  if (!diasArray || !Array.isArray(diasArray) || diasArray.length === 0) return '-';
-  
-  const diasMap = {
-    0: 'Seg',
-    1: 'Ter',
-    2: 'Qua',
-    3: 'Qui',
-    4: 'Sex',
-    5: 'Sáb'
+  const deleteCliente = async (id) => {
+    Alert.alert('Excluir Cliente', 'Tem certeza que deseja excluir este cliente?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Excluir', onPress: async () => {
+          await databaseService.delete('cliente', 'id = ?', [id]);
+          await fetchClientes();
+        }
+      }
+    ]);
   };
-  
-  // Remove duplicados, ordena e mapeia para abreviações
-  return [...new Set(diasArray)]
-    .sort((a, b) => a - b)
-    .map(num => diasMap[num] || num)
-    .join(', ');
-};
+
+  const traduzirDiasEntrega = (diasArray) => {
+    if (!Array.isArray(diasArray) || diasArray.length === 0) return '-';
+    const diasMap = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+    return diasArray.sort((a, b) => a - b).map(num => diasMap[num] || num).join(', ');
+  };
+
+  const renderClienteItem = ({ item }) => {
+    const enderecoFormatado = item.endereco
+      ? `${item.endereco.rua}, ${item.endereco.numero} - ${item.endereco.bairro}`
+      : '-';
+    const cpfCnpj = item.tipo === 'física' ? item.cpf : item.cnpj;
+
+    return (
+      <View style={styles.itemContainer}>
+        <TouchableOpacity style={styles.itemBox} onPress={() => setExpandedId(expandedId === item.id ? null : item.id)}>
+          <View style={styles.itemHeader}>
+            <Text style={styles.itemTitle}>{item.nome}</Text>
+          </View>
+
+          {expandedId === item.id && (
+            <View style={styles.expandedContent}>
+              <Text style={styles.itemDetail}>Tipo: {item.tipo}</Text>
+              <Text style={styles.itemDetail}>CPF/CNPJ: {cpfCnpj}</Text>
+              <Text style={styles.itemDetail}>Telefone: {item.telefone?.numero || '-'}</Text>
+              <Text style={styles.itemDetail}>Email: {item.email?.email || '-'}</Text>
+              <Text style={styles.itemDetail}>Endereço: {enderecoFormatado}</Text>
+              <Text style={styles.itemDetail}>Dias de Entrega: {traduzirDiasEntrega(item.dias_entrega)}</Text>
+
+              <View style={styles.actionButtons}>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.editButton]}
+                  onPress={() => navigation.navigate('EditarCliente', { clienteId: item.id })}
+                >
+                  <Text style={styles.actionButtonText}>Editar</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionButton, { backgroundColor: '#808080' }]}
+                  onPress={() => openModal(item)}
+                >
+                  <Text style={styles.actionButtonText}>Ver Completo</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
+    );
+  };
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#043b57" barStyle="light-content" />
@@ -242,9 +196,9 @@ const traduzirDiasEntrega = (diasArray) => {
               resizeMode="contain"
             />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalMTR')}>
+          <TouchableOpacity onPress={() => navigation.navigate('MenuPrincipalADM')}>
             <Image
-              source={require('../../Assets/MTR.png')}
+              source={require('../../Assets/ADM.png')}
               style={styles.alerta}
               resizeMode="contain"
             />
@@ -253,7 +207,12 @@ const traduzirDiasEntrega = (diasArray) => {
       </View>
 
       <View style={styles.content}>
-        
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => navigation.navigate('CadastroClientes')}
+        >
+          <Text style={styles.buttonText}>NOVO CLIENTE</Text>
+        </TouchableOpacity>
 
         {/* Campo de busca */}
         <View style={styles.navbarFiltro}>

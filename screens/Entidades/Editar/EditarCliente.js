@@ -1,17 +1,17 @@
 import NetInfo from '@react-native-community/netinfo';
 import { useEffect, useState } from 'react';
 import {
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { supabase } from '../../../contexts/supabaseClient';
 import { databaseService } from '../../../services/localDatabase';
@@ -53,9 +53,8 @@ export default function EditarClienteScreen({ navigation, route }) {
   async function carregarDados() {
     try {
       setLoading(true);
-      
-      // Carrega os dados do cliente
       let clienteData;
+
       if (useLocalData) {
         clienteData = await databaseService.selectById('cliente', clienteId);
       } else {
@@ -69,37 +68,39 @@ export default function EditarClienteScreen({ navigation, route }) {
       }
 
       if (clienteData) {
-        // Carrega dados relacionados
         const [enderecoData, telefoneData, emailData] = await Promise.all([
-          useLocalData 
+          useLocalData
             ? databaseService.selectById('endereco', clienteData.endereco_id)
             : supabase.from('endereco').select('*').eq('id', clienteData.endereco_id).single(),
-          clienteData.telefone_id 
-            ? (useLocalData 
-                ? databaseService.selectById('telefone', clienteData.telefone_id)
-                : supabase.from('telefone').select('*').eq('id', clienteData.telefone_id).single())
+          clienteData.telefone_id
+            ? (useLocalData
+              ? databaseService.selectById('telefone', clienteData.telefone_id)
+              : supabase.from('telefone').select('*').eq('id', clienteData.telefone_id).single())
             : Promise.resolve({ data: null }),
-          clienteData.email_id 
-            ? (useLocalData 
-                ? databaseService.selectById('email', clienteData.email_id)
-                : supabase.from('email').select('*').eq('id', clienteData.email_id).single())
+          clienteData.email_id
+            ? (useLocalData
+              ? databaseService.selectById('email', clienteData.email_id)
+              : supabase.from('email').select('*').eq('id', clienteData.email_id).single())
             : Promise.resolve({ data: null })
         ]);
 
-        // Formata os dias de entrega
         const diasEntrega = useLocalData
           ? clienteData.dias_entrega?.split(',') || []
           : clienteData.dias_entrega?.map((dia) => diasSemana[dia]) || [];
 
-        setFormData({
+        setFormData(prev => ({
+          ...prev,
           nome: clienteData.nome || '',
           cpf: clienteData.cpf ? maskCpf(clienteData.cpf) : '',
           cnpj: clienteData.cnpj ? maskCnpj(clienteData.cnpj) : '',
           tipo: clienteData.tipo || 'física',
           observacao: clienteData.observacao || '',
           diasEntrega,
-          status: clienteData.status || 'ativo'
-        });
+          status: clienteData.status || 'ativo',
+          endereco_id: clienteData.endereco_id,
+          telefone_id: clienteData.telefone_id,
+          email_id: clienteData.email_id
+        }));
 
         if (enderecoData.data) {
           setEndereco({
@@ -156,7 +157,6 @@ export default function EditarClienteScreen({ navigation, route }) {
     if (!telefone) newErrors.telefone = 'Telefone é obrigatório';
     if (email && !/^\S+@\S+\.\S+$/.test(email)) newErrors.email = 'Email inválido';
 
-    // Validação endereço
     if (!endereco.cep.trim()) newErrors.cep = 'CEP é obrigatório';
     if (!endereco.uf.trim()) newErrors.uf = 'Estado (UF) é obrigatório';
     if (!endereco.cidade.trim()) newErrors.cidade = 'Cidade é obrigatória';
@@ -181,51 +181,27 @@ export default function EditarClienteScreen({ navigation, route }) {
         bairro: endereco.bairro.trim(),
         rua: endereco.rua.trim(),
         numero: endereco.numero.trim(),
-        complemento: endereco.complemento.trim() || null,
-        tipo: endereco.tipo.trim() || null
+        complemento: endereco.complemento?.trim() || null,
+        tipo: endereco.tipo?.trim() || null
       };
 
       const networkState = await NetInfo.fetch();
       const isConnected = networkState.isConnected;
 
-      // Atualiza endereço
       if (isConnected) {
-        const { error: enderecoError } = await supabase
-          .from('endereco')
-          .update(enderecoData)
-          .eq('id', formData.endereco_id);
-        if (enderecoError) throw enderecoError;
+        await supabase.from('endereco').update(enderecoData).eq('id', formData.endereco_id);
+        if (formData.telefone_id)
+          await supabase.from('telefone').update({ numero: telefone.trim() }).eq('id', formData.telefone_id);
+        if (formData.email_id)
+          await supabase.from('email').update({ email: email.trim() }).eq('id', formData.email_id);
       } else {
         await databaseService.update('endereco', enderecoData, 'id = ?', [formData.endereco_id]);
-      }
-
-      // Atualiza telefone
-      if (formData.telefone_id) {
-        if (isConnected) {
-          const { error: telError } = await supabase
-            .from('telefone')
-            .update({ numero: telefone.trim() })
-            .eq('id', formData.telefone_id);
-          if (telError) throw telError;
-        } else {
+        if (formData.telefone_id)
           await databaseService.update('telefone', { numero: telefone.trim() }, 'id = ?', [formData.telefone_id]);
-        }
-      }
-
-      // Atualiza email
-      if (formData.email_id) {
-        if (isConnected) {
-          const { error: emailError } = await supabase
-            .from('email')
-            .update({ email: email.trim() })
-            .eq('id', formData.email_id);
-          if (emailError) throw emailError;
-        } else {
+        if (formData.email_id)
           await databaseService.update('email', { email: email.trim() }, 'id = ?', [formData.email_id]);
-        }
       }
 
-      // Formata dias de entrega
       const diasEntregaFormatado = isConnected
         ? formData.diasEntrega.map((dia) => diasSemana.indexOf(dia))
         : formData.diasEntrega.join(',');
@@ -241,11 +217,7 @@ export default function EditarClienteScreen({ navigation, route }) {
       };
 
       if (isConnected) {
-        const { error: clienteError } = await supabase
-          .from('cliente')
-          .update(clienteData)
-          .eq('id', clienteId);
-        if (clienteError) throw clienteError;
+        await supabase.from('cliente').update(clienteData).eq('id', clienteId);
       } else {
         await databaseService.update('cliente', clienteData, 'id = ?', [clienteId]);
       }
@@ -258,16 +230,6 @@ export default function EditarClienteScreen({ navigation, route }) {
       setLoading(false);
     }
   }
-
-  if (loading) {
-    return (
-      <View style={styles.container}>
-        <StatusBar backgroundColor="#043b57" barStyle="light-content" />
-        <Text style={styles.emptyText}>Carregando dados do cliente...</Text>
-      </View>
-    );
-  }
-
   return (
     <KeyboardAvoidingView 
       style={styles.container}

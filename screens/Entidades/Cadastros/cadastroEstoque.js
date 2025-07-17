@@ -1,5 +1,6 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import NetInfo from '@react-native-community/netinfo';
+import { Picker } from '@react-native-picker/picker';
 import { useEffect, useState } from 'react';
 import { Alert, Image, KeyboardAvoidingView, Platform, ScrollView, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
@@ -23,20 +24,19 @@ export default function CadastroEstoque({ navigation }) {
     disponivel_geral: true,
     quantidade_reservada: 0
   });
-  useEffect(() => {
-  const fetchUserId = async () => {
-    const { data, error } = await supabase.auth.getUser();
-    if (data?.user) {
-      setFormData(prev => ({ ...prev, funcionario_id: data.user.id }));
-    } else {
-      console.log('Erro ao buscar usuário logado:', error);
-    }
-  };
 
-  fetchUserId();
-}, []);
-  const [unidadeMedida, setUnidadeMedida] = useState('un');
-  const [codigoBarras, setCodigoBarras] = useState('');
+  useEffect(() => {
+    const fetchUserId = async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (data?.user) {
+        setFormData(prev => ({ ...prev, funcionario_id: data.user.id }));
+      } else {
+        console.log('Erro ao buscar usuário logado:', error);
+      }
+    };
+    fetchUserId();
+  }, []);
+
   const [showDatePickerAquisicao, setShowDatePickerAquisicao] = useState(false);
   const [showDatePickerValidade, setShowDatePickerValidade] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -58,50 +58,48 @@ export default function CadastroEstoque({ navigation }) {
   };
 
   const handleSubmit = async () => {
-  if (!validateForm()) return;
-  setLoading(true);
-  try {
-    const estoqueData = {
-      nome: formData.nome.trim(),
-      quantidade: parseInt(formData.quantidade),
-      numero_serie: formData.numero_serie?.trim() || null, // "lote"
-      tipo: formData.tipo || null,
-      data_aquisicao: formData.data_aquisicao?.toISOString().split('T')[0] || null,
-      data_validade: formData.data_validade?.toISOString().split('T')[0] || null,
-      peso: formData.peso ? parseFloat(formData.peso) : null,
-      valor: formData.valor ? parseFloat(formData.valor) : null,
-      modalidade: formData.modalidade || null,
-      observacao: formData.observacao?.trim() || null,
-      funcionario_id: formData.funcionario_id,
-      cliente_id: formData.cliente_id ? Number(formData.cliente_id) : null,
-      quantidade_reservada: formData.quantidade_reservada || 0,
-      
-    };
+    if (!validateForm()) return;
+    setLoading(true);
+    try {
+      const estoqueData = {
+        nome: formData.nome.trim(),
+        quantidade: parseInt(formData.quantidade),
+        numero_serie: formData.numero_serie?.trim() || null,
+        tipo: formData.tipo || null,
+        data_aquisicao: formData.data_aquisicao?.toISOString().split('T')[0] || null,
+        data_validade: formData.data_validade?.toISOString().split('T')[0] || null,
+        peso: formData.peso ? parseFloat(formData.peso) : null,
+        valor: formData.valor ? parseFloat(formData.valor) : null,
+        modalidade: formData.modalidade || null,
+        observacao: formData.observacao?.trim() || null,
+        funcionario_id: formData.funcionario_id,
+        cliente_id: formData.cliente_id ? Number(formData.cliente_id) : null,
+        quantidade_reservada: formData.quantidade_reservada || 0,
+      };
 
-    const state = await NetInfo.fetch();
-    if (state.isConnected) {
-      const { error } = await supabase.from('estoque').insert([estoqueData]);
-      if (error) throw error;
-    } else {
-      await databaseService.insertWithUUID('estoque', estoqueData);
+      const state = await NetInfo.fetch();
+      if (state.isConnected) {
+        const { error } = await supabase.from('estoque').insert([estoqueData]);
+        if (error) throw error;
+      } else {
+        await databaseService.insertWithUUID('estoque', estoqueData);
+      }
+
+      Alert.alert('Sucesso', 'Item de estoque cadastrado com sucesso!');
+      navigation.goBack();
+    } catch (error) {
+      Alert.alert('Erro', error.message || 'Falha ao cadastrar estoque');
+    } finally {
+      setLoading(false);
     }
-
-    Alert.alert('Sucesso', 'Item de estoque cadastrado com sucesso!');
-    navigation.goBack();
-  } catch (error) {
-    Alert.alert('Erro', error.message || 'Falha ao cadastrar estoque');
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   return (
     <KeyboardAvoidingView
-  style={styles.container}
-  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-  keyboardVerticalOffset={100}
->
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={100}
+    >
       <StatusBar backgroundColor="#043b57" barStyle="light-content" />
       <View style={styles.header}>
         <View style={styles.headerContent}>
@@ -121,9 +119,11 @@ export default function CadastroEstoque({ navigation }) {
           </TouchableOpacity>
         </View>
       </View>
+
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>CADASTRO DE PRODUTO</Text>
+
           <TextInput
             label="Nome do Produto*"
             value={formData.nome}
@@ -158,9 +158,6 @@ export default function CadastroEstoque({ navigation }) {
               error={!!errors.valor}
             />
           </View>
-          {(errors.quantidade || errors.valor) && (
-            <Text style={styles.errorText}>{errors.quantidade || errors.valor}</Text>
-          )}
 
           <TextInput
             label="Peso Unitário (kg)"
@@ -171,6 +168,7 @@ export default function CadastroEstoque({ navigation }) {
             right={<TextInput.Affix text="kg" />}
           />
 
+          {/* Date Pickers */}
           <Text style={styles.label}>Data de Aquisição*</Text>
           <TouchableOpacity
             style={styles.dateInput}
@@ -214,18 +212,34 @@ export default function CadastroEstoque({ navigation }) {
             />
           )}
 
-          <TextInput
-            label="Tipo"
-            value={formData.tipo}
-            onChangeText={text => handleChange('tipo', text)}
-            style={styles.input}
-          />
-          <TextInput
-            label="Modalidade"
-            value={formData.modalidade}
-            onChangeText={text => handleChange('modalidade', text)}
-            style={styles.input}
-          />
+          {/* Picker de Tipo */}
+          <Text style={styles.label}>Tipo</Text>
+          <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={formData.tipo}
+              onValueChange={(value) => handleChange('tipo', value)}
+              style={styles.picker}
+            >
+              <Picker.Item label="Selecione o tipo" value="" />
+              <Picker.Item label="Unidade" value="unidade" />
+              <Picker.Item label="Quilo" value="quilo" />
+              <Picker.Item label="Caixa" value="caixa" />
+            </Picker>
+          </View>
+
+          {/* Picker de Modalidade */}
+          <Text style={styles.label}>Modalidade</Text>
+          <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={formData.modalidade}
+              onValueChange={(value) => handleChange('modalidade', value)}
+              style={styles.picker}
+            >
+              <Picker.Item label="Selecione a modalidade" value="" />
+              <Picker.Item label="Produção Própria" value="producao" />
+              <Picker.Item label="Venda Terceirizada" value="terceirizada" />
+            </Picker>
+          </View>
 
           <TextInput
             label="Observações"
@@ -256,6 +270,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#844a05',
+  },
+  pickerContainer: {
+    backgroundColor: 'white',
+    borderRadius: 5,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  picker: {
+    height: 50,
+    width: '100%',
   },
   header: {
     height: 120,
